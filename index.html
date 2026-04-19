@@ -1077,7 +1077,7 @@ async function uploadFile(file) {
     // 建立圖片下拉選單（從 _currentImages）
     const imgOpts = _currentImages.length
       ? _currentImages.map(f =>
-          `<option value="https://drive.google.com/thumbnail?id=${f.id}&sz=w1200" ${f.id === fileId ? 'selected' : ''}>${f.name}</option>`
+          `<option value="https://lh3.googleusercontent.com/d/${f.id}" ${f.id === fileId ? 'selected' : ''}>${f.name}</option>`
         ).join('')
       : '<option value="">（此資料夾無圖片）</option>';
     document.getElementById('line-image-select').innerHTML = imgOpts;
