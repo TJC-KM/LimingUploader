@@ -1065,12 +1065,13 @@ async function uploadFile(file) {
       _lineUsers = [];
     }
     const targetSel = document.getElementById('line-target');
+    const allOption = `<option value="ALL">👥 全部人</option>`;
     if (_lineUsers.length) {
-      targetSel.innerHTML = _lineUsers.map(u =>
+      targetSel.innerHTML = allOption + _lineUsers.map(u =>
         `<option value="${u.userId}">${u.userName}</option>`
       ).join('');
     } else {
-      targetSel.innerHTML = `<option value="">${usersError ? '讀取失敗：' + usersError : '（Users 頁籤無資料）'}</option>`;
+      targetSel.innerHTML = allOption + `<option value="">${usersError ? '讀取失敗：' + usersError : '（Users 頁籤無資料）'}</option>`;
     }
 
     // 建立圖片下拉選單（從 _currentImages）
