@@ -221,7 +221,7 @@
 
       <label class="modal-label">預約發送時間（30 分鐘一格）</label>
       <div class="line-time-row">
-        <input type="date" id="line-date" style="padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;width:100%;">
+        <input type="date" id="line-date" style="padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;width:100%;margin:0;">
         <select id="line-time"></select>
       </div>
 
@@ -313,6 +313,7 @@
         <span>檔案列表</span>
         <span class="badge" id="current-folder-badge">請先選擇資料夾</span>
         <button class="btn-view-toggle" id="view-toggle-btn" onclick="toggleViewMode()" title="切換顯示方式">≡ 清單</button>
+        <a href="https://docs.google.com/spreadsheets/d/1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k/edit" onclick="openExternal(this.href);return false;" class="btn-view-toggle" style="text-decoration:none;" title="LINE 排程總表">總表</a>
       </div>
       <div id="file-list">
         <div class="empty-files">請先選擇資料夾</div>
@@ -1065,7 +1066,7 @@ async function uploadFile(file) {
       _lineUsers = [];
     }
     const targetSel = document.getElementById('line-target');
-    const allOption = `<option value="ALL">👥 全部人</option>`;
+    const allOption = `<option value="ALL" style="color:#e24b4a;font-weight:600;">👥 全部人</option>`;
     if (_lineUsers.length) {
       targetSel.innerHTML = allOption + _lineUsers.map(u =>
         `<option value="${u.userId}">${u.userName}</option>`
@@ -1116,6 +1117,9 @@ async function uploadFile(file) {
 
     if (!date || !time) { errEl.textContent = '請選擇發送時間'; return; }
     if (!targetId)      { errEl.textContent = '請選擇發送對象'; return; }
+    if (targetId === 'ALL') {
+      if (!confirm('⚠️⚠️⚠️ 即將發送給「全部人」！！！\n\n請再次確認，此訊息將廣播給所有成員。\n\n確定要繼續嗎？')) return;
+    }
 
     let content = '', title = '', subBtn = '';
     if (type === 'text') {
