@@ -144,6 +144,27 @@
   .folder-rename-btn { position: absolute; top: 6px; right: 6px; font-size: 11px; padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.95); border: 1px solid #ddd; color: #888; cursor: pointer; opacity: 0; transition: opacity 0.15s; line-height: 1.6; }
   .folder-card:hover .folder-rename-btn { opacity: 1; }
   .folder-rename-btn:hover { color: #378ADD; border-color: #378ADD; }
+
+  /* LINE 發布按鈕 */
+  .btn-action-line { color: #00B900 !important; border-color: #b3e6b3 !important; }
+  .btn-action-line:hover { background: #f0fff0 !important; border-color: #00B900 !important; }
+  .img-line-btn { position: absolute; bottom: 28px; right: 5px; font-size: 10px; padding: 2px 6px; border-radius: 5px; background: rgba(0,185,0,0.85); border: none; color: #fff; cursor: pointer; opacity: 0; transition: opacity 0.15s; font-weight: bold; }
+  .img-card:hover .img-line-btn { opacity: 1; }
+  .img-line-btn:hover { background: #009900; }
+
+  /* LINE 彈窗 */
+  .line-modal-body { max-height: 80vh; overflow-y: auto; padding-right: 2px; }
+  .line-section { display: none; margin-top: 8px; padding: 14px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #00B900; }
+  .line-section.show { display: block; }
+  .line-time-row { display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; }
+  .modal-label { font-size: 12px; font-weight: 600; color: #555; display: block; margin-top: 12px; margin-bottom: 4px; }
+  .modal select, .modal textarea { width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; margin-top: 0; outline: none; box-sizing: border-box; }
+  .modal select:focus, .modal textarea:focus { border-color: #00B900; }
+  .modal textarea { resize: vertical; min-height: 72px; font-family: inherit; }
+  .modal-hint { font-size: 11px; color: #888; margin-top: 4px; line-height: 1.4; }
+  .btn-line { padding: 10px; border-radius: 10px; font-size: 14px; cursor: pointer; background: #00B900; color: #fff; border: none; flex: 1; font-weight: 600; }
+  .btn-line:hover { background: #009900; }
+  .btn-line:disabled { background: #aaa; cursor: default; }
 </style>
 </head>
 <body>
@@ -185,6 +206,61 @@
     <div class="modal-btns">
       <button class="btn-secondary" onclick="closeDeleteModal()">取消</button>
       <button class="btn-danger" id="delete-confirm-btn" onclick="confirmDeleteItem()">確認移除</button>
+    </div>
+  </div>
+</div>
+
+<!-- LINE 排程彈窗 -->
+<div class="modal-overlay" id="line-modal">
+  <div class="modal">
+    <h3 style="color:#00B900; border-bottom:2px solid #00B900; padding-bottom:8px;">📣 LINE 排程發送</h3>
+    <p>設定內容後寫入排程試算表</p>
+    <div class="line-modal-body">
+      <label class="modal-label">發送對象</label>
+      <select id="line-target"></select>
+
+      <label class="modal-label">預約發送時間（30 分鐘一格）</label>
+      <div class="line-time-row">
+        <input type="date" id="line-date" style="padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;width:100%;">
+        <select id="line-time"></select>
+      </div>
+
+      <label class="modal-label">訊息類型</label>
+      <select id="line-type" onchange="switchLineType()">
+        <option value="text">純文字訊息</option>
+        <option value="image">單張大圖 (Image)</option>
+        <option value="flex">教會卡片 (Flex)</option>
+      </select>
+
+      <div id="line-text-section" class="line-section show">
+        <label class="modal-label">文字內容</label>
+        <textarea id="line-text" rows="4" placeholder="請輸入訊息內容..."></textarea>
+      </div>
+
+      <div id="line-image-section" class="line-section">
+        <label class="modal-label">選擇圖片</label>
+        <select id="line-image-select"></select>
+        <div class="modal-hint">來源：目前資料夾的圖片</div>
+      </div>
+
+      <div id="line-flex-section" class="line-section">
+        <label class="modal-label">封面圖片</label>
+        <select id="line-flex-image"></select>
+        <label class="modal-label">訊息標題</label>
+        <input type="text" id="line-flex-title" placeholder="例如：線上聚會網址" style="padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;width:100%;box-sizing:border-box;margin-top:0;">
+        <label class="modal-label">訊息描述</label>
+        <textarea id="line-flex-desc" rows="2" placeholder="例如：歡迎各位弟兄姊妹..."></textarea>
+        <label class="modal-label">按鈕名稱</label>
+        <input type="text" id="line-flex-btn-label" placeholder="點我開啟（可空白）" style="padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;width:100%;box-sizing:border-box;margin-top:0;">
+        <label class="modal-label">按鈕連結 (URL)</label>
+        <input type="text" id="line-flex-btn-url" placeholder="https://youtube.com/..." style="padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;width:100%;box-sizing:border-box;margin-top:0;">
+      </div>
+
+      <div class="error-msg" id="line-error" style="margin-top:10px;"></div>
+    </div>
+    <div class="modal-btns" style="margin-top:16px;">
+      <button class="btn-secondary" onclick="closeLineModal()">取消</button>
+      <button class="btn-line" id="line-confirm-btn" onclick="submitLineForm()">確認加入排程</button>
     </div>
   </div>
 </div>
@@ -264,6 +340,8 @@
   let _deleteType = '';
   let _deleteId = '';
   let viewMode = 'grid'; // 'grid' 或 'list'
+  let _lineUsers = [];   // 發送對象快取
+  let _currentImages = []; // 目前資料夾圖片快取（供 LINE 彈窗使用）
 
   // 頁面載入：顯示類別選擇畫面
   window.onload = () => loadCategories();
@@ -597,6 +675,12 @@
     const videos = sortedFiles.filter(f => f.mimeType && f.mimeType.startsWith('video/'));
     const others = sortedFiles.filter(f => !f.mimeType || (!f.mimeType.startsWith('image/') && !f.mimeType.startsWith('video/')));
 
+    // 更新圖片快取（供 LINE 彈窗圖片選單使用）
+    _currentImages = images;
+
+    // 判斷是否顯示 LINE 發布按鈕（登入 + 類別設定 linePublish=true）
+    const showLine = isLoggedIn && CATEGORIES.find(c => c.id === currentCategoryId)?.linePublish;
+
     let html = '';
 
     if (viewMode === 'list') {
@@ -610,6 +694,9 @@
         const deleteBtn = isLoggedIn
           ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file','${f.id}','${safeName}')">刪除</button>`
           : '';
+        const lineBtn = showLine
+          ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>`
+          : '';
         return `
           <div class="file-row">
             <div class="file-type-icon">${getFileIcon(f.mimeType)}</div>
@@ -621,7 +708,7 @@
             <div class="file-actions">
               <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a>
               <a href="https://drive.google.com/uc?export=download&id=${f.id}" class="btn-action">下載</a>
-              ${renameBtn}${deleteBtn}
+              ${renameBtn}${deleteBtn}${lineBtn}
             </div>
           </div>
         `;
@@ -635,6 +722,9 @@
           const deleteBtn = isLoggedIn
             ? `<button class="img-delete-btn" onclick="event.preventDefault();openDeleteModal('file','${f.id}','${safeName}')">🗑</button>`
             : '';
+          const lineBtn = showLine
+            ? `<button class="img-line-btn" onclick="event.preventDefault();openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">LINE</button>`
+            : '';
           const thumb = `<img class="img-thumb" src="https://drive.google.com/thumbnail?id=${f.id}&sz=w300" alt="${f.name}" loading="lazy">`;
           const playOverlay = isVideo ? `<div class="img-play-overlay"></div>` : '';
           return `
@@ -643,7 +733,7 @@
                 ${thumb}${playOverlay}
               </a>
               <div class="img-name">${f.name}</div>
-              ${deleteBtn}
+              ${deleteBtn}${lineBtn}
             </div>`;
         }).join('');
         g += `</div>`;
@@ -660,11 +750,15 @@
       }
 
       html += others.map(f => {
+        const safeName = f.name.replace(/'/g, "\\'");
         const renameBtn = isLoggedIn
           ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>`
           : '';
         const deleteBtn = isLoggedIn
           ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file', '${f.id}')">刪除</button>`
+          : '';
+        const lineBtn = showLine
+          ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>`
           : '';
         return `
           <div class="file-row">
@@ -677,8 +771,7 @@
             <div class="file-actions">
               <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a>
               <a href="https://drive.google.com/uc?export=download&id=${f.id}" class="btn-action">下載</a>
-              ${renameBtn}
-              ${deleteBtn}
+              ${renameBtn}${deleteBtn}${lineBtn}
             </div>
           </div>
         `;
@@ -815,7 +908,10 @@ async function uploadFile(file) {
     if (e.key === 'Escape') closeRenameModal();
   });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && document.getElementById('delete-modal').classList.contains('show')) closeDeleteModal();
+    if (e.key === 'Escape') {
+      if (document.getElementById('delete-modal').classList.contains('show')) closeDeleteModal();
+      if (document.getElementById('line-modal').classList.contains('show')) closeLineModal();
+    }
   });
 
   // ── 重新命名 ──────────────────────────────
@@ -925,6 +1021,129 @@ async function uploadFile(file) {
       document.getElementById('delete-error').textContent = '網路錯誤，請稍後再試';
       btn.disabled = false;
       btn.textContent = '確認移除';
+    }
+  }
+
+  // ── LINE 排程發送 ─────────────────────────
+
+  async function openLineModal(fileId, fileName, mimeType) {
+    document.getElementById('line-error').textContent = '';
+    document.getElementById('line-confirm-btn').disabled = false;
+    document.getElementById('line-confirm-btn').textContent = '確認加入排程';
+
+    // 初始化時間選擇器（只建一次）
+    const timeSelect = document.getElementById('line-time');
+    if (timeSelect.options.length === 0) {
+      for (let h = 0; h < 24; h++) {
+        for (let m = 0; m < 60; m += 30) {
+          const opt = document.createElement('option');
+          opt.value = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+          opt.textContent = opt.value;
+          timeSelect.appendChild(opt);
+        }
+      }
+    }
+    // 預設日期 = 今天，時間 = 09:00
+    const now = new Date();
+    document.getElementById('line-date').value =
+      `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    timeSelect.value = '09:00';
+
+    // 載入發送對象（快取）
+    if (_lineUsers.length === 0) {
+      try {
+        const res = await fetch(`${WORKER_URL}/users`);
+        const d = await res.json();
+        _lineUsers = d.users || [];
+      } catch (e) { _lineUsers = []; }
+    }
+    const targetSel = document.getElementById('line-target');
+    targetSel.innerHTML = _lineUsers.length
+      ? _lineUsers.map(u => `<option value="${u.userId}">${u.userName}</option>`).join('')
+      : '<option value="">（無發送對象）</option>';
+
+    // 建立圖片下拉選單（從 _currentImages）
+    const imgOpts = _currentImages.length
+      ? _currentImages.map(f =>
+          `<option value="https://drive.google.com/thumbnail?id=${f.id}&sz=w1200" ${f.id === fileId ? 'selected' : ''}>${f.name}</option>`
+        ).join('')
+      : '<option value="">（此資料夾無圖片）</option>';
+    document.getElementById('line-image-select').innerHTML = imgOpts;
+    document.getElementById('line-flex-image').innerHTML = imgOpts;
+
+    // 預設訊息類型：圖片檔自動選「單張大圖」，其他選「純文字」
+    const isImg = mimeType && mimeType.startsWith('image/');
+    document.getElementById('line-type').value = isImg ? 'image' : 'text';
+    switchLineType();
+
+    document.getElementById('line-modal').classList.add('show');
+  }
+
+  function closeLineModal() {
+    document.getElementById('line-modal').classList.remove('show');
+  }
+
+  function switchLineType() {
+    const t = document.getElementById('line-type').value;
+    document.getElementById('line-text-section').style.display  = t === 'text'  ? 'block' : 'none';
+    document.getElementById('line-image-section').style.display = t === 'image' ? 'block' : 'none';
+    document.getElementById('line-flex-section').style.display  = t === 'flex'  ? 'block' : 'none';
+  }
+
+  async function submitLineForm() {
+    const btn = document.getElementById('line-confirm-btn');
+    const errEl = document.getElementById('line-error');
+    errEl.textContent = '';
+
+    const type     = document.getElementById('line-type').value;
+    const date     = document.getElementById('line-date').value;
+    const time     = document.getElementById('line-time').value;
+    const targetEl = document.getElementById('line-target');
+    const targetId = targetEl.value;
+    const targetName = targetEl.options[targetEl.selectedIndex]?.text || '';
+
+    if (!date || !time) { errEl.textContent = '請選擇發送時間'; return; }
+    if (!targetId)      { errEl.textContent = '請選擇發送對象'; return; }
+
+    let content = '', title = '', subBtn = '';
+    if (type === 'text') {
+      content = document.getElementById('line-text').value.trim();
+      if (!content) { errEl.textContent = '請輸入文字內容'; return; }
+    } else if (type === 'image') {
+      content = document.getElementById('line-image-select').value;
+      if (!content) { errEl.textContent = '請選擇圖片'; return; }
+    } else {
+      content  = document.getElementById('line-flex-image').value;
+      title    = document.getElementById('line-flex-title').value.trim();
+      const desc     = document.getElementById('line-flex-desc').value.trim();
+      const btnLabel = document.getElementById('line-flex-btn-label').value.trim();
+      const btnUrl   = document.getElementById('line-flex-btn-url').value.trim();
+      subBtn = `${desc}｜${btnLabel}｜${btnUrl}`;
+      if (!content) { errEl.textContent = '請選擇封面圖片'; return; }
+    }
+
+    btn.disabled = true;
+    btn.textContent = '送出中...';
+
+    try {
+      const res = await fetch(`${WORKER_URL}/schedule`, {
+        method: 'POST',
+        headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ time: `${date} ${time}`, targetId, targetName, type, content, title, subBtn })
+      });
+      const d = await res.json();
+      if (res.ok) {
+        closeLineModal();
+        alert('✅ 已加入 LINE 排程！');
+      } else {
+        errEl.textContent = d.error || '送出失敗，請稍後再試';
+        btn.disabled = false;
+        btn.textContent = '確認加入排程';
+      }
+    } catch (e) {
+      errEl.textContent = '網路錯誤，請稍後再試';
+      btn.disabled = false;
+      btn.textContent = '確認加入排程';
     }
   }
 
