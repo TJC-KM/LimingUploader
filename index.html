@@ -1049,18 +1049,29 @@ async function uploadFile(file) {
       `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
     timeSelect.value = '09:00';
 
-    // 載入發送對象（快取）
-    if (_lineUsers.length === 0) {
-      try {
-        const res = await fetch(`${WORKER_URL}/users`);
-        const d = await res.json();
-        _lineUsers = d.users || [];
-      } catch (e) { _lineUsers = []; }
+    // 載入發送對象（每次都重新嘗試，直到成功為止）
+    let usersError = '';
+    try {
+      const res = await fetch(`${WORKER_URL}/users`);
+      const d = await res.json();
+      if (d.error) {
+        usersError = d.error;
+        console.error('[LINE Modal] 讀取 Users 失敗:', d.error);
+      }
+      _lineUsers = d.users || [];
+    } catch (e) {
+      usersError = e.message;
+      console.error('[LINE Modal] fetch /users 例外:', e);
+      _lineUsers = [];
     }
     const targetSel = document.getElementById('line-target');
-    targetSel.innerHTML = _lineUsers.length
-      ? _lineUsers.map(u => `<option value="${u.userId}">${u.userName}</option>`).join('')
-      : '<option value="">（無發送對象）</option>';
+    if (_lineUsers.length) {
+      targetSel.innerHTML = _lineUsers.map(u =>
+        `<option value="${u.userId}">${u.userName}</option>`
+      ).join('');
+    } else {
+      targetSel.innerHTML = `<option value="">${usersError ? '讀取失敗：' + usersError : '（Users 頁籤無資料）'}</option>`;
+    }
 
     // 建立圖片下拉選單（從 _currentImages）
     const imgOpts = _currentImages.length
