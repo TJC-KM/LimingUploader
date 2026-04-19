@@ -135,6 +135,10 @@
   .sort-btn:hover { border-color: #378ADD; color: #378ADD; }
   .section-title { display: flex; align-items: center; }
 
+  /* 檢視切換按鈕 */
+  .btn-view-toggle { font-size: 12px; padding: 3px 10px; border-radius: 6px; border: 1px solid #ddd; background: #fff; color: #555; cursor: pointer; margin-left: auto; flex-shrink: 0; }
+  .btn-view-toggle:hover { border-color: #378ADD; color: #378ADD; }
+
   /* 資料夾改名按鈕 */
   .folder-card { position: relative; }
   .folder-rename-btn { position: absolute; top: 6px; right: 6px; font-size: 11px; padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.95); border: 1px solid #ddd; color: #888; cursor: pointer; opacity: 0; transition: opacity 0.15s; line-height: 1.6; }
@@ -232,6 +236,7 @@
       <div class="file-section-header">
         <span>檔案列表</span>
         <span class="badge" id="current-folder-badge">請先選擇資料夾</span>
+        <button class="btn-view-toggle" id="view-toggle-btn" onclick="toggleViewMode()" title="切換顯示方式">≡ 清單</button>
       </div>
       <div id="file-list">
         <div class="empty-files">請先選擇資料夾</div>
@@ -258,6 +263,7 @@
   let _renameTargets = {};
   let _deleteType = '';
   let _deleteId = '';
+  let viewMode = 'grid'; // 'grid' 或 'list'
 
   // 頁面載入：顯示類別選擇畫面
   window.onload = () => loadCategories();
@@ -321,7 +327,7 @@
           if (currentCategoryId) {
             loadFolders();
             const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
-            if (currentFolderId && !noUpload) showUploadZone();
+            if (!noUpload) showUploadZone();
           }
         }, 800);
       } else {
@@ -349,12 +355,8 @@
     updateDriveBtn();
     if (currentCategoryId) {
       loadFolders();
-      if (currentFolderId) {
-        showLoginHint();
-      } else {
-        document.getElementById('upload-area').innerHTML =
-          '<div class="empty-files">請先選擇資料夾</div>';
-      }
+      const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
+      if (!noUpload) showLoginHint();
     }
   }
 
@@ -397,12 +399,22 @@
     document.getElementById('category-view').style.display = 'none';
     document.getElementById('folder-view').style.display = 'block';
     document.getElementById('current-folder-badge').textContent = name;
-    document.getElementById('upload-area').innerHTML = '<div class="empty-files">請先選擇資料夾後再上傳</div>';
     document.getElementById('upload-list').innerHTML = '';
+    viewMode = 'grid';
+    updateViewToggleBtn();
     renderBreadcrumb();
     updateDriveBtn();
     loadFolders();
     loadFiles(id);
+    // 類別根目錄也可上傳（除非 noUpload）
+    const noUpload = cat?.noUpload;
+    if (noUpload) {
+      document.getElementById('upload-area').innerHTML = '';
+    } else if (isLoggedIn) {
+      showUploadZone();
+    } else {
+      showLoginHint();
+    }
   }
 
   function goHome() {
@@ -436,7 +448,14 @@
     } else {
       // 回到類別根目錄，同樣載入該層檔案
       document.getElementById('current-folder-badge').textContent = currentCategoryName;
-      document.getElementById('upload-area').innerHTML = '<div class="empty-files">請先選擇資料夾後再上傳</div>';
+      const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
+      if (noUpload) {
+        document.getElementById('upload-area').innerHTML = '';
+      } else if (isLoggedIn) {
+        showUploadZone();
+      } else {
+        showLoginHint();
+      }
       loadFiles(currentCategoryId);
     }
   }
@@ -580,61 +599,91 @@
 
     let html = '';
 
-    function renderMediaGrid(items, label, isVideo) {
-      let g = `<div class="img-section-label">${label}（${items.length}）</div><div class="img-grid">`;
-      g += items.map(f => {
+    if (viewMode === 'list') {
+      // ── 清單模式：所有檔案以列表列出 ──
+      html = sortedFiles.map(f => {
         const safeName = f.name.replace(/'/g, "\\'");
-        const deleteBtn = isLoggedIn
-          ? `<button class="img-delete-btn" onclick="event.preventDefault();openDeleteModal('file','${f.id}','${safeName}')">🗑</button>`
+        const isMedia = f.mimeType && (f.mimeType.startsWith('image/') || f.mimeType.startsWith('video/'));
+        const renameBtn = isLoggedIn && !isMedia
+          ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>`
           : '';
-        const thumb = `<img class="img-thumb" src="https://drive.google.com/thumbnail?id=${f.id}&sz=w300" alt="${f.name}" loading="lazy">`;
-        const playOverlay = isVideo ? `<div class="img-play-overlay"></div>` : '';
+        const deleteBtn = isLoggedIn
+          ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file','${f.id}','${safeName}')">刪除</button>`
+          : '';
         return `
-          <div class="img-card">
-            <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;">
-              ${thumb}${playOverlay}
-            </a>
-            <div class="img-name">${f.name}</div>
-            ${deleteBtn}
-          </div>`;
+          <div class="file-row">
+            <div class="file-type-icon">${getFileIcon(f.mimeType)}</div>
+            <div class="file-info">
+              <div class="file-name">${f.name}</div>
+              <div class="file-meta">${formatSize(f.size)}</div>
+            </div>
+            <div class="file-date">${formatDate(f.createdTime)}</div>
+            <div class="file-actions">
+              <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a>
+              <a href="https://drive.google.com/uc?export=download&id=${f.id}" class="btn-action">下載</a>
+              ${renameBtn}${deleteBtn}
+            </div>
+          </div>
+        `;
       }).join('');
-      g += `</div>`;
-      return g;
-    }
+    } else {
+      // ── 格狀模式：圖片 / 影片以縮圖格呈現，其他以清單呈現 ──
+      function renderMediaGrid(items, label, isVideo) {
+        let g = `<div class="img-section-label">${label}（${items.length}）</div><div class="img-grid">`;
+        g += items.map(f => {
+          const safeName = f.name.replace(/'/g, "\\'");
+          const deleteBtn = isLoggedIn
+            ? `<button class="img-delete-btn" onclick="event.preventDefault();openDeleteModal('file','${f.id}','${safeName}')">🗑</button>`
+            : '';
+          const thumb = `<img class="img-thumb" src="https://drive.google.com/thumbnail?id=${f.id}&sz=w300" alt="${f.name}" loading="lazy">`;
+          const playOverlay = isVideo ? `<div class="img-play-overlay"></div>` : '';
+          return `
+            <div class="img-card">
+              <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;">
+                ${thumb}${playOverlay}
+              </a>
+              <div class="img-name">${f.name}</div>
+              ${deleteBtn}
+            </div>`;
+        }).join('');
+        g += `</div>`;
+        return g;
+      }
 
-    if (images.length > 0) {
-      html += renderMediaGrid(images, '圖片', false);
-      if (videos.length > 0 || others.length > 0) html += `<hr class="img-section-divider">`;
-    }
-    if (videos.length > 0) {
-      html += renderMediaGrid(videos, '影片', true);
-      if (others.length > 0) html += `<hr class="img-section-divider">`;
-    }
+      if (images.length > 0) {
+        html += renderMediaGrid(images, '圖片', false);
+        if (videos.length > 0 || others.length > 0) html += `<hr class="img-section-divider">`;
+      }
+      if (videos.length > 0) {
+        html += renderMediaGrid(videos, '影片', true);
+        if (others.length > 0) html += `<hr class="img-section-divider">`;
+      }
 
-    html += others.map(f => {
-      const renameBtn = isLoggedIn
-        ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>`
-        : '';
-      const deleteBtn = isLoggedIn
-        ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file', '${f.id}')">刪除</button>`
-        : '';
-      return `
-        <div class="file-row">
-          <div class="file-type-icon">${getFileIcon(f.mimeType)}</div>
-          <div class="file-info">
-            <div class="file-name">${f.name}</div>
-            <div class="file-meta">${formatSize(f.size)}</div>
+      html += others.map(f => {
+        const renameBtn = isLoggedIn
+          ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>`
+          : '';
+        const deleteBtn = isLoggedIn
+          ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file', '${f.id}')">刪除</button>`
+          : '';
+        return `
+          <div class="file-row">
+            <div class="file-type-icon">${getFileIcon(f.mimeType)}</div>
+            <div class="file-info">
+              <div class="file-name">${f.name}</div>
+              <div class="file-meta">${formatSize(f.size)}</div>
+            </div>
+            <div class="file-date">${formatDate(f.createdTime)}</div>
+            <div class="file-actions">
+              <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a>
+              <a href="https://drive.google.com/uc?export=download&id=${f.id}" class="btn-action">下載</a>
+              ${renameBtn}
+              ${deleteBtn}
+            </div>
           </div>
-          <div class="file-date">${formatDate(f.createdTime)}</div>
-          <div class="file-actions">
-            <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a>
-            <a href="https://drive.google.com/uc?export=download&id=${f.id}" class="btn-action">下載</a>
-            ${renameBtn}
-            ${deleteBtn}
-          </div>
-        </div>
-      `;
-    }).join('');
+        `;
+      }).join('');
+    }
 
     list.innerHTML = html || '<div class="empty-files">這個資料夾還沒有檔案</div>';
   }
@@ -676,7 +725,7 @@
     } else {
       for (const file of files) await uploadFile(file);
     }
-    loadFiles(currentFolderId);
+    loadFiles(currentFolderId || currentCategoryId);
   }
 
 async function uploadFile(file) {
@@ -705,7 +754,7 @@ async function uploadFile(file) {
         'X-File-Meta': encodeURIComponent(JSON.stringify({
           fileName: file.name,
           mimeType: file.type || 'application/octet-stream',
-          folderId: currentFolderId
+          folderId: currentFolderId || currentCategoryId
         }))
       },
       body: file,
@@ -812,7 +861,7 @@ async function uploadFile(file) {
         if (_renameType === 'folder') {
           loadFolders();
         } else {
-          loadFiles(currentFolderId);
+          loadFiles(currentFolderId || currentCategoryId);
         }
       } else {
         document.getElementById('rename-error').textContent = data.error || '重新命名失敗';
@@ -852,7 +901,7 @@ async function uploadFile(file) {
     document.getElementById('delete-error').textContent = '';
     const fromParentId = _deleteType === 'folder'
       ? (folderStack.length > 0 ? folderStack[folderStack.length - 1].id : currentCategoryId)
-      : currentFolderId;
+      : (currentFolderId || currentCategoryId);
     try {
       const res = await fetch(`${WORKER_URL}/move`, {
         method: 'PATCH',
@@ -865,7 +914,7 @@ async function uploadFile(file) {
         if (_deleteType === 'folder') {
           loadFolders();
         } else {
-          loadFiles(currentFolderId);
+          loadFiles(currentFolderId || currentCategoryId);
         }
       } else {
         document.getElementById('delete-error').textContent = data.error || '移動失敗';
@@ -912,7 +961,21 @@ async function uploadFile(file) {
     sortAsc = !sortAsc;
     updateSortBtn();
     loadFolders();
-    if (currentFolderId) loadFiles(currentFolderId);
+    if (currentFolderId || currentCategoryId) loadFiles(currentFolderId || currentCategoryId);
+  }
+
+  // ── 檢視切換 ─────────────────────────────
+
+  function toggleViewMode() {
+    viewMode = viewMode === 'grid' ? 'list' : 'grid';
+    updateViewToggleBtn();
+    const fid = currentFolderId || currentCategoryId;
+    if (fid) loadFiles(fid);
+  }
+
+  function updateViewToggleBtn() {
+    const btn = document.getElementById('view-toggle-btn');
+    if (btn) btn.textContent = viewMode === 'grid' ? '≡ 清單' : '⊞ 格狀';
   }
 
   // ── 工具函式 ─────────────────────────────
