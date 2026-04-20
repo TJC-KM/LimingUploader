@@ -324,11 +324,15 @@
     </div>
   </div>
   
-  <div class="version-footer">最後發布日期：2024-05-23 17:30</div>
+  <div class="version-footer" id="version-footer"></div>
 </div>
 
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
+
+  // 更新版號日期
+  const now = new Date();
+  document.getElementById('version-footer').textContent = '最後發布日期：' + now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
 
   let CATEGORIES = []; // 從 Google Sheet 動態載入
 
