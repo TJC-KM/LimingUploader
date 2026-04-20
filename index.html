@@ -330,9 +330,12 @@
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
-  // 更新版號日期
-  const now = new Date();
-  document.getElementById('version-footer').textContent = '最後發布日期：' + now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  // 更新版號日期 (即時顯示)
+  function updateFooter() {
+    const now = new Date();
+    document.getElementById('version-footer').textContent = '最後更新時間：' + now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  }
+  updateFooter();
 
   let CATEGORIES = []; // 從 Google Sheet 動態載入
 
@@ -876,32 +879,6 @@ async function uploadFile(file) {
     document.getElementById(`${itemId}-status`).className = 'upload-item-status error';
   }
 }
-
-  function uploadWithProgress(file, uploadUrl, itemId) {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('PUT', uploadUrl);
-      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-      xhr.upload.onprogress = e => {
-        if (e.lengthComputable) {
-          const pct = Math.round(e.loaded / e.total * 100);
-          document.getElementById(`${itemId}-bar`).style.width = pct + '%';
-          document.getElementById(`${itemId}-status`).textContent = pct + '%';
-        }
-      };
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          document.getElementById(`${itemId}-bar`).style.width = '100%';
-          document.getElementById(`${itemId}-bar`).className = 'progress-fill done';
-          document.getElementById(`${itemId}-status`).textContent = '完成 ✓';
-          document.getElementById(`${itemId}-status`).className = 'upload-item-status done';
-          resolve();
-        } else { reject(new Error('上傳失敗')); }
-      };
-      xhr.onerror = () => reject(new Error('網路錯誤'));
-      xhr.send(file);
-    });
-  }
 
   // ── 鍵盤快捷鍵 ───────────────────────────
 
