@@ -70,7 +70,7 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
 - **不可更動** `ALLOWED_ORIGIN`、`TRASH_FOLDER_ID`、`SHEET_ID`、`SCHEDULE_SHEET_ID` 這四個常數
 - **不可刪除** 任何現有 API 路由（`/categories`、`/folders`、`/files`、`/users`、`/auth`、`/upload`、`/rename`、`/move`、`/schedule`）
 - **不可變更** Google Sheet 的欄位順序（只能在最後新增欄位）
-- **不可直接 push 到 `main`**，所有變更必須先在 worktree（`main-local` 分支）完成，merge 後再 push
+- **不可跳過 worktree 流程**，所有變更必須在 worktree（`main-local` 分支）完成後，merge 到 `main` 再 push（Claude Code 負責執行 merge 與 push）
 
 ### 部署流程
 1. 在 worktree 修改 `index.html`
