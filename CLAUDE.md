@@ -82,6 +82,7 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
 
 ## 注意事項
 - `worker.js` 以 git 專案根目錄的版本為主，`C:\Users\c3012\Downloads\worker.js` 已廢棄，請勿再編輯
-- 修改 `worker.js` 後必須提醒使用者到 Cloudflare Dashboard 手動重新部署
+- 修改 `worker.js` 後必須提醒使用者到以下連結手動重新部署：
+  **https://dash.cloudflare.com/8e2eb47cb86e3cfb953c89dd148b6137/workers/services/view/liminguploader/production**
 - `Users` 頁籤**有標題列**，程式讀取時會跳過第一列
 - `Schedule` 頁籤**有標題列**，程式讀取時會跳過第一列
