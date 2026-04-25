@@ -5,7 +5,7 @@
 | 檔案 | 說明 |
 |------|------|
 | `index.html` | 唯一前端檔案，部署於 GitHub Pages |
-| `C:\Users\c3012\Downloads\worker.js` | Cloudflare Worker 後端，需手動部署 |
+| `worker.js` | Cloudflare Worker 後端，需手動部署（已納入 git 版控） |
 
 **後端 API：** `https://liminguploader.c3012312.workers.dev`  
 **前端網址：** `https://tjc-km.github.io/LimingUploader/`
@@ -81,7 +81,7 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
 ---
 
 ## 注意事項
-- `worker.js` 不在 git 版控內，存放於 `C:\Users\c3012\Downloads\worker.js`
+- `worker.js` 已納入 git 版控，存放於專案根目錄（原本在 `C:\Users\c3012\Downloads\worker.js`，兩邊請保持同步）
 - 修改 `worker.js` 後必須提醒使用者到 Cloudflare Dashboard 手動重新部署
 - `Users` 頁籤**有標題列**，程式讀取時會跳過第一列
 - `Schedule` 頁籤**有標題列**，程式讀取時會跳過第一列

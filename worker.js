@@ -1,0 +1,646 @@
+// ========================================
+// 設定區：修改這裡來調整基本設定
+// ========================================
+
+// 允許存取的前端網址（你的 GitHub Pages 網址）
+const ALLOWED_ORIGIN = 'https://tjc-km.github.io';
+
+// 刪除區資料夾 ID（移至此資料夾視為刪除）
+const TRASH_FOLDER_ID = '1WySxHQ_iHr0wuBHdc7laT_N2CNfH3iCm';
+
+// 類別設定 Google Sheet ID
+const SHEET_ID = '1xuSBVb1bonQldMgaOZfhu4T2knqt91AJjTzG-YqoBn4';
+
+// LINE 排程 Sheet ID
+const SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k';
+
+// ========================================
+// CORS 設定：讓瀏覽器允許跨網域請求
+// 每次請求都會帶上這些 headers
+// ========================================
+function corsHeaders() {
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Password, X-File-Meta',
+    'Access-Control-Max-Age': '86400', // 預檢請求快取 24 小時
+  };
+}
+
+// ========================================
+// 主程式進入點
+// 所有請求都會先經過這裡
+// ========================================
+export default {
+  async fetch(request, env) {
+    const headers = corsHeaders();
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const method = request.method;
+
+    // 瀏覽器在跨域請求前會先發 OPTIONS 預檢請求
+    // 直接回應 204 讓瀏覽器知道可以繼續
+    if (method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers });
+    }
+
+    try {
+      // ========================================
+      // 公開路由：不需要密碼，任何人都可以讀取
+      // ========================================
+
+      // 取得類別設定（公開，從 Google Sheet 讀取）
+      if (path === '/categories' && method === 'GET') {
+        const token = await getAccessToken(env);
+        return await getCategories(token, headers);
+      }
+
+      // 列出指定資料夾下的子資料夾（公開）
+      if (path === '/folders' && method === 'GET') {
+        const token = await getAccessToken(env);
+        const folderId = url.searchParams.get('folderId') || env.FOLDER_ID;
+        return await listFolders(token, folderId, headers);
+      }
+
+      // 列出指定資料夾內的檔案（公開）
+      if (path === '/files' && method === 'GET') {
+        const token = await getAccessToken(env);
+        const folderId = url.searchParams.get('folderId');
+        return await listFiles(token, folderId, headers);
+      }
+
+      // 取得發送對象清單（公開，從 Users 頁籤讀取）
+      if (path === '/users' && method === 'GET') {
+        const token = await getAccessToken(env);
+        return await getUsers(token, headers);
+      }
+
+      // 【暫時端點】讀取 Drive 中 xlsx 的內容（轉為 Google Sheet 再讀取，用完請移除）
+      if (path === '/drivecsv' && method === 'GET') {
+        const token = await getAccessToken(env);
+        const fileId = url.searchParams.get('fileId');
+        return await readXlsxAsSheet(token, fileId, headers);
+      }
+
+      // ========================================
+      // 私密路由：需要密碼，才能新增或上傳
+      // 專門用來驗證密碼的路由（不做任何 Drive 操作）
+      if (path === '/auth' && method === 'POST') {
+        const { password: inputPassword } = await request.json();
+        if (inputPassword === env.UPLOAD_PASSWORD) {
+          return new Response(JSON.stringify({ ok: true }), {
+            headers: { ...headers, 'Content-Type': 'application/json' },
+          });
+        } else {
+          return new Response(JSON.stringify({ ok: false }), {
+            status: 401,
+            headers: { ...headers, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+
+      // ========================================
+
+      // 驗證密碼（只有私密路由才會執行到這裡）
+      const password = request.headers.get('X-Password');
+      if (password !== env.UPLOAD_PASSWORD) {
+        return new Response(
+          JSON.stringify({ error: '密碼錯誤，沒有權限執行此操作' }),
+          {
+            status: 401,
+            headers: { ...headers, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      // 取得 Google OAuth Token（私密路由共用）
+      const token = await getAccessToken(env);
+
+      // 新增資料夾（需要密碼）
+      if (path === '/folders' && method === 'POST') {
+        const { name, parentId } = await request.json();
+        return await createFolder(
+          token,
+          name,
+          parentId || env.FOLDER_ID, // 沒有指定父資料夾就放在根目錄
+          headers
+        );
+      }
+
+      // 取得大檔案上傳網址（需要密碼）
+      // 代理上傳：接收瀏覽器的檔案，轉傳給 Google Drive
+      if (path === '/upload' && method === 'POST') {
+        const { fileName, mimeType, folderId } = JSON.parse(
+          decodeURIComponent(request.headers.get('X-File-Meta') || '{}')
+        );
+
+        const fileBuffer = await request.arrayBuffer();
+        const boundary = '-------CloudflareWorkerBoundary';
+
+        // 組合 multipart 請求內容
+        const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
+        const metaPart = [
+          `--${boundary}`,
+          'Content-Type: application/json; charset=UTF-8',
+          '',
+          metadata,
+          '',
+        ].join('\r\n');
+
+        const filePart = `--${boundary}\r\nContent-Type: ${mimeType || 'application/octet-stream'}\r\n\r\n`;
+        const ending = `\r\n--${boundary}--`;
+
+        // 把文字和二進位檔案合併成一個 ArrayBuffer
+        const encoder = new TextEncoder();
+        const metaBytes = encoder.encode(metaPart);
+        const filePartBytes = encoder.encode(filePart);
+        const endingBytes = encoder.encode(ending);
+
+        const body = new Uint8Array(
+          metaBytes.byteLength + filePartBytes.byteLength +
+          fileBuffer.byteLength + endingBytes.byteLength
+        );
+        let offset = 0;
+        body.set(metaBytes, offset); offset += metaBytes.byteLength;
+        body.set(filePartBytes, offset); offset += filePartBytes.byteLength;
+        body.set(new Uint8Array(fileBuffer), offset); offset += fileBuffer.byteLength;
+        body.set(endingBytes, offset);
+
+        // 一次送出 multipart 請求
+        const uploadRes = await fetch(
+          'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true',
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': `multipart/related; boundary=${boundary}`,
+            },
+            body: body,
+          }
+        );
+
+        const result = await uploadRes.text();
+        console.log('Google 回應狀態：', uploadRes.status);
+        console.log('Google 回應內容：', result);
+        return new Response(result, {
+          status: uploadRes.status,
+          headers: { ...headers, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // 重新命名檔案或資料夾（需要密碼）
+      if (path === '/rename' && method === 'PATCH') {
+        const { id, newName } = await request.json();
+        return await renameItem(token, id, newName, headers);
+      }
+
+      // 移至刪除區（需要密碼）
+      if (path === '/move' && method === 'PATCH') {
+        const { id, fromParentId } = await request.json();
+        return await moveItem(token, id, fromParentId, headers);
+      }
+
+      // 新增 LINE 排程（需要密碼）
+      if (path === '/schedule' && method === 'POST') {
+        const body = await request.json();
+        return await addScheduleRow(token, body, headers);
+      }
+
+      // 找不到對應路由
+      return new Response('Not found', { status: 404, headers });
+
+    } catch (err) {
+      // 統一錯誤處理：把錯誤訊息回傳給前端方便除錯
+      return new Response(
+        JSON.stringify({ error: err.message }),
+        {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+  },
+};
+
+// ========================================
+// Google OAuth：取得存取 Token
+// 用 Service Account 的 JSON 金鑰產生 JWT
+// 再換成 Google API 的 access token
+// ========================================
+async function getAccessToken(env) {
+  // 從環境變數讀取 Service Account 金鑰
+  const key = JSON.parse(env.SERVICE_ACCOUNT_KEY);
+  const now = Math.floor(Date.now() / 1000);
+
+  // 建立 JWT Header（指定演算法）
+  const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  // 建立 JWT Payload（聲明這個 token 的用途和有效期）
+  const payload = btoa(JSON.stringify({
+    iss: key.client_email,           // 發行者：Service Account email
+    scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets', // 權限範圍：Drive + Sheets 讀寫
+    aud: 'https://oauth2.googleapis.com/token',     // 接收者：Google Token 端點
+    iat: now,                        // 發行時間
+    exp: now + 3600,                 // 有效期：1 小時後過期
+  })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  // 用私鑰簽署 JWT
+  const signingInput = `${header}.${payload}`;
+  const privateKey = await importPrivateKey(key.private_key);
+  const signature = await signJWT(signingInput, privateKey);
+  const jwt = `${signingInput}.${signature}`;
+
+  // 用 JWT 換取 Google access token
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+  });
+
+  const data = await res.json();
+  if (!data.access_token) {
+    throw new Error('無法取得 Google Token：' + JSON.stringify(data));
+  }
+  return data.access_token;
+}
+
+// 將 PEM 格式的私鑰轉換成 Web Crypto API 可用的格式
+async function importPrivateKey(pem) {
+  const pemContent = pem
+    .replace(/-----[^-]+-----/g, '') // 移除 PEM 標頭和結尾
+    .replace(/\s/g, '');             // 移除所有空白和換行
+  const der = Uint8Array.from(atob(pemContent), c => c.charCodeAt(0));
+  return crypto.subtle.importKey(
+    'pkcs8',
+    der.buffer,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+}
+
+// 用私鑰對 JWT 內容進行 RS256 簽署
+async function signJWT(input, key) {
+  const encoded = new TextEncoder().encode(input);
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, encoded);
+  return btoa(String.fromCharCode(...new Uint8Array(sig)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// ========================================
+// Google Drive API 操作函式
+// ========================================
+
+// 列出根資料夾下的所有子資料夾
+async function listFolders(token, rootFolderId, headers) {
+  // 查詢條件：在根資料夾內、是資料夾類型、沒有被刪除
+  const query = encodeURIComponent(
+    `'${rootFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`
+  );
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,createdTime)&orderBy=name&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const data = await res.json();
+  return new Response(JSON.stringify(data), {
+    headers: { ...headers, 'Content-Type': 'application/json' },
+  });
+}
+
+// 在指定位置新增資料夾
+async function createFolder(token, name, parentId, headers) {
+  const res = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name,                                                    // 資料夾名稱
+      mimeType: 'application/vnd.google-apps.folder',         // 指定為資料夾類型
+      parents: [parentId],                                     // 放在哪個資料夾裡
+    }),
+  });
+  const data = await res.json();
+  return new Response(JSON.stringify(data), {
+    headers: { ...headers, 'Content-Type': 'application/json' },
+  });
+}
+
+// 列出指定資料夾內的所有檔案（不含子資料夾）
+async function listFiles(token, folderId, headers) {
+  // 查詢條件：在指定資料夾內、不是資料夾類型、沒有被刪除
+  const query = encodeURIComponent(
+    `'${folderId}' in parents and mimeType!='application/vnd.google-apps.folder' and trashed=false`
+  );
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,size,createdTime,mimeType)&orderBy=createdTime desc&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const data = await res.json();
+  return new Response(JSON.stringify(data), {
+    headers: { ...headers, 'Content-Type': 'application/json' },
+  });
+}
+
+// 重新命名檔案或資料夾
+async function renameItem(token, fileId, newName, headers) {
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name: newName }),
+    }
+  );
+  const data = await res.json();
+  return new Response(JSON.stringify(data), {
+    status: res.status,
+    headers: { ...headers, 'Content-Type': 'application/json' },
+  });
+}
+
+// 將檔案或資料夾移至刪除區（不真正刪除）
+async function moveItem(token, fileId, fromParentId, headers) {
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?addParents=${TRASH_FOLDER_ID}&removeParents=${fromParentId}&supportsAllDrives=true&fields=id,parents`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    }
+  );
+  const data = await res.json();
+  return new Response(JSON.stringify(data), {
+    status: res.status,
+    headers: { ...headers, 'Content-Type': 'application/json' },
+  });
+}
+
+// 從 Google Sheet 讀取類別設定
+async function getCategories(token, headers) {
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A:I`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const data = await res.json();
+
+  if (!data.values || data.values.length < 2) {
+    return new Response(JSON.stringify({ categories: [] }), {
+      headers: { ...headers, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // 第一列是標題，從第二列開始是資料
+  const [, ...rows] = data.values;
+  const categories = rows
+    .filter(row => (row[7] || '').toUpperCase() === 'TRUE') // enabled = TRUE 才顯示
+    .map(row => ({
+      name:     row[0] || '',
+      icon:     row[1] || '📁',
+      type:     row[2] || 'drive',   // 'drive' 或 'link'
+      id:       row[3] || null,      // Google Drive 資料夾 ID
+      url:      row[4] || null,      // 外部連結（type=link 時）
+      sort:     row[5] || 'asc',     // 'asc' 或 'desc'
+      noUpload:     (row[6] || '').toUpperCase() === 'TRUE',
+      linePublish:  (row[8] || '').toUpperCase() === 'TRUE', // I欄：是否顯示 LINE 發布按鈕
+    }));
+
+  return new Response(JSON.stringify({ categories }), {
+    headers: { ...headers, 'Content-Type': 'application/json' },
+  });
+}
+
+// 從 Google Sheet 的 Users 頁籤讀取發送對象清單
+async function getUsers(token, headers) {
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_SHEET_ID}/values/Users!A:B`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const data = await res.json();
+
+  // Sheets API 回傳錯誤時直接揭露訊息，方便除錯
+  if (data.error) {
+    console.error('[getUsers] Sheets API error:', JSON.stringify(data.error));
+    return new Response(
+      JSON.stringify({ users: [], error: `Sheets API: ${data.error.message}` }),
+      { headers: { ...headers, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  if (!data.values || data.values.length < 2) {
+    // 無資料（只有標題列或空白）
+    return new Response(JSON.stringify({ users: [] }), {
+      headers: { ...headers, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const [, ...rows] = data.values; // 跳過標題列
+  const users = rows
+    .filter(row => row[0] && row[1])
+    .map(row => ({ userId: row[0], userName: row[1] }));
+
+  return new Response(JSON.stringify({ users }), {
+    headers: { ...headers, 'Content-Type': 'application/json' },
+  });
+}
+
+// 新增一列 LINE 排程到排程 Sheet
+// 欄位：A發送時間 B對象ID C對象名稱 D訊息類型 E內容/圖片URL F標題 G描述+按鈕 H建立時間 I狀態
+async function addScheduleRow(token, body, headers) {
+  const { time, targetId, targetName, type, content, title, subBtn } = body;
+  const createdAt = new Date().toISOString().replace('T', ' ').substring(0, 16);
+
+  const row = [time, targetId, targetName, type, content || '', title || '', subBtn || '', createdAt, '待發送'];
+
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_SHEET_ID}/values/Schedule!A:I:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ values: [row] }),
+    }
+  );
+  const data = await res.json();
+  return new Response(JSON.stringify(data), {
+    status: res.status,
+    headers: { ...headers, 'Content-Type': 'application/json' },
+  });
+}
+
+// 向 Google Drive 申請一個 Resumable Upload 網址
+// 前端拿到這個網址後，直接把檔案上傳到 Google，不經過 Worker
+// 這樣可以支援超大檔案，也不會佔用 Worker 的資源
+async function getUploadUrl(token, fileName, mimeType, folderId, headers) {
+  const res = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-Upload-Content-Type': mimeType, // 告訴 Google 即將上傳的檔案類型
+      },
+      body: JSON.stringify({
+        name: fileName,        // 上傳後的檔案名稱
+        parents: [folderId],   // 放在哪個資料夾
+      }),
+    }
+  );
+  // Google 會回傳一個臨時的上傳網址（有效期約 1 週）
+  const uploadUrl = res.headers.get('Location');
+  return new Response(JSON.stringify({ uploadUrl }), {
+    headers: { ...headers, 'Content-Type': 'application/json' },
+  });
+}
+
+// 【暫時函式】讀取 Drive 中 xlsx 檔案的所有 cell 值
+// 策略 1：直接用 Sheets API 讀（有時 Drive xlsx 可直接讀取）
+// 策略 2：下載 xlsx 二進位，解析 ZIP 內的 XML
+async function readXlsxAsSheet(token, fileId, headers) {
+  if (!fileId) {
+    return new Response(JSON.stringify({ error: 'fileId 必填' }), {
+      status: 400, headers: { ...headers, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // 策略 1：直接用 Sheets API 嘗試（對 Drive xlsx 有時可行）
+  const sheetsRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/A1:ZZ200`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (sheetsRes.ok) {
+    const data = await sheetsRes.json();
+    return new Response(JSON.stringify({ source: 'sheets', ...data }), {
+      headers: { ...headers, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // 策略 2：下載 xlsx 二進位，用簡易 ZIP 解析器讀取 XML
+  const dlRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!dlRes.ok) {
+    const err = await dlRes.text();
+    return new Response(JSON.stringify({ error: 'download failed: ' + err }), {
+      status: 500, headers: { ...headers, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const buf = await dlRes.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+
+  // 用 Central Directory（ZIP 尾端）解析，確保 compSize 正確
+  function read32(off) { return bytes[off] | (bytes[off+1]<<8) | (bytes[off+2]<<16) | (bytes[off+3]<<24); }
+  function read16(off) { return bytes[off] | (bytes[off+1]<<8); }
+
+  // 從尾端找 End of Central Directory (PK\x05\x06)
+  let eocd = -1;
+  for (let i = bytes.length - 22; i >= 0; i--) {
+    if (bytes[i]===0x50 && bytes[i+1]===0x4B && bytes[i+2]===0x05 && bytes[i+3]===0x06) { eocd = i; break; }
+  }
+  if (eocd === -1) return new Response(JSON.stringify({ error: 'EOCD not found' }), { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } });
+
+  const cdCount  = read16(eocd + 8);
+  const cdOffset = read32(eocd + 16);
+
+  // 解析 Central Directory entries (PK\x01\x02)
+  const entries = [];
+  let pos = cdOffset;
+  for (let i = 0; i < cdCount; i++) {
+    if (read32(pos) !== 0x02014B50) break;
+    const compMethod = read16(pos + 10);
+    const compSize   = read32(pos + 20);
+    const uncompSize = read32(pos + 24);
+    const fnLen      = read16(pos + 28);
+    const extraLen   = read16(pos + 30);
+    const cmtLen     = read16(pos + 32);
+    const lhOffset   = read32(pos + 42);
+    const filename   = new TextDecoder().decode(bytes.slice(pos+46, pos+46+fnLen));
+    // 從 local file header 算出實際資料起點
+    const lfnLen     = read16(lhOffset + 26);
+    const lextraLen  = read16(lhOffset + 28);
+    const dataStart  = lhOffset + 30 + lfnLen + lextraLen;
+    entries.push({ filename, compMethod, compSize, uncompSize, dataStart });
+    pos += 46 + fnLen + extraLen + cmtLen;
+  }
+
+  // 找 sharedStrings.xml 和 sheet1.xml
+  const ssEntry = entries.find(e => e.filename.includes('sharedStrings'));
+  const shEntry = entries.find(e => e.filename.match(/worksheets\/sheet1\.xml/));
+
+  async function decompress(entry) {
+    const compressed = bytes.slice(entry.dataStart, entry.dataStart + entry.compSize);
+    if (entry.compMethod === 0) return new TextDecoder().decode(compressed);
+    const ds = new DecompressionStream('deflate-raw');
+    const writer = ds.writable.getWriter();
+    writer.write(compressed);
+    writer.close();
+    const chunks = [];
+    const reader = ds.readable.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    const total = chunks.reduce((a, c) => a + c.length, 0);
+    const result = new Uint8Array(total);
+    let off = 0;
+    for (const c of chunks) { result.set(c, off); off += c.length; }
+    return new TextDecoder().decode(result);
+  }
+
+  // 解析 sharedStrings
+  let sharedStrings = [];
+  if (ssEntry) {
+    const ssXml = await decompress(ssEntry);
+    const matches = [...ssXml.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)];
+    // 按 <si> 分組
+    const siParts = ssXml.split('<si>');
+    for (let si of siParts.slice(1)) {
+      const ts = [...si.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map(m => m[1]);
+      sharedStrings.push(ts.join(''));
+    }
+  }
+
+  if (!shEntry) {
+    return new Response(JSON.stringify({ error: 'sheet1.xml not found', entries: entries.map(e=>e.filename) }), {
+      status: 500, headers: { ...headers, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const shXml = await decompress(shEntry);
+
+  // 解析 <row> 與 <c>，還原格子值
+  const rowMatches = [...shXml.matchAll(/<row[^>]*r="(\d+)"[^>]*>([\s\S]*?)<\/row>/g)];
+  const grid = {};
+  for (const rm of rowMatches) {
+    const rowNum = parseInt(rm[1]);
+    const rowXml = rm[2];
+    const cells = [...rowXml.matchAll(/<c r="([A-Z]+\d+)"(?:\s+[^>]*)?\s+t="([^"]*)"[^>]*>[\s\S]*?<v>([\s\S]*?)<\/v>[\s\S]*?<\/c>|<c r="([A-Z]+\d+)"[^>]*>[\s\S]*?<v>([\s\S]*?)<\/v>[\s\S]*?<\/c>/g)];
+    for (const cm of cells) {
+      const ref = cm[1] || cm[4];
+      const type = cm[2] || '';
+      const val = cm[3] !== undefined ? cm[3] : cm[5];
+      let cellVal = val;
+      if (type === 's') cellVal = sharedStrings[parseInt(val)] || val;
+      if (!grid[rowNum]) grid[rowNum] = {};
+      grid[rowNum][ref.replace(/\d+/, '')] = cellVal;
+    }
+  }
+
+  return new Response(JSON.stringify({ source: 'zip', sharedStrings, grid }), {
+    headers: { ...headers, 'Content-Type': 'application/json' },
+  });
+}
