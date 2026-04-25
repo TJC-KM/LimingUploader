@@ -73,15 +73,15 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
 - **不可跳過 worktree 流程**，所有變更必須在 worktree（`main-local` 分支）完成後，merge 到 `main` 再 push（Claude Code 負責執行 merge 與 push）
 
 ### 部署流程
-1. 在 worktree 修改 `index.html`
+1. 在 worktree 修改 `index.html` 或 `worker.js`
 2. `git add` → `git commit`（worktree 自動 commit 到 `main-local`）
 3. `cd` 到主專案 → `git merge main-local` → `git push origin main`
-4. `worker.js` 異動時另外提醒使用者手動部署到 Cloudflare
+4. `worker.js` 異動時另外提醒使用者手動部署到 Cloudflare（從專案根目錄的 `worker.js` 複製到 Cloudflare Dashboard）
 
 ---
 
 ## 注意事項
-- `worker.js` 已納入 git 版控，存放於專案根目錄（原本在 `C:\Users\c3012\Downloads\worker.js`，兩邊請保持同步）
+- `worker.js` 以 git 專案根目錄的版本為主，`C:\Users\c3012\Downloads\worker.js` 已廢棄，請勿再編輯
 - 修改 `worker.js` 後必須提醒使用者到 Cloudflare Dashboard 手動重新部署
 - `Users` 頁籤**有標題列**，程式讀取時會跳過第一列
 - `Schedule` 頁籤**有標題列**，程式讀取時會跳過第一列
