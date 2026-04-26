@@ -63,7 +63,7 @@
   .file-type-icon { font-size: 18px; flex-shrink: 0; padding-top: 3px; }
   .file-info { flex: 1; min-width: 0; }
   .file-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #file-list.list-mode .file-name { white-space: normal; overflow: visible; text-overflow: unset; }
+  #file-list.list-mode .file-name, #file-list:not(.list-mode) .file-name { white-space: normal; overflow: visible; text-overflow: unset; }
   .file-meta { font-size: 11px; color: #888; margin-top: 2px; }
   .file-date { font-size: 11px; color: #aaa; flex-shrink: 0; }
   .empty-files { padding: 24px; text-align: center; color: #aaa; font-size: 13px; }
@@ -350,7 +350,7 @@
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
-  document.getElementById('version-footer').textContent = '最後發布時間：2026-04-27 01:52';
+  document.getElementById('version-footer').textContent = '最後發布時間：2026-04-27 01:58';
 
   let CATEGORIES = []; // 從 Google Sheet 動態載入
 
