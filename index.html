@@ -331,12 +331,7 @@
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
-  // 更新版號日期 (即時顯示)
-  function updateFooter() {
-    const now = new Date();
-    document.getElementById('version-footer').textContent = '最後更新時間：' + now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-  }
-  updateFooter();
+  document.getElementById('version-footer').textContent = '最後發布時間：2026-04-26 04:23';
 
   let CATEGORIES = []; // 從 Google Sheet 動態載入
 
