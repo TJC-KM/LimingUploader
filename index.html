@@ -708,7 +708,7 @@
       html = sortedFiles.map(f => {
         const safeName = f.name.replace(/'/g, "\\'");
         const isMedia = f.mimeType && (f.mimeType.startsWith('image/') || f.mimeType.startsWith('video/'));
-        const renameBtn = isLoggedIn && !isMedia
+        const renameBtn = isLoggedIn
           ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>`
           : '';
         const deleteBtn = isLoggedIn
