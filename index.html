@@ -317,6 +317,7 @@
         <span>檔案列表</span>
         <span class="badge" id="current-folder-badge">請先選擇資料夾</span>
         <button class="btn-view-toggle" id="view-toggle-btn" onclick="toggleViewMode()" title="切換顯示方式">≡ 清單</button>
+        <button class="btn-view-toggle" id="share-gallery-btn" onclick="copyGalleryLink()" title="複製圖庫連結">🔗 分享</button>
         <a href="https://docs.google.com/spreadsheets/d/1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k/edit" onclick="openExternal(this.href);return false;" class="btn-view-toggle" style="text-decoration:none;" title="LINE 排程總表">總表</a>
       </div>
       <div id="file-list">
@@ -1195,6 +1196,22 @@ async function uploadFile(file) {
     updateSortBtn();
     loadFolders();
     if (currentFolderId || currentCategoryId) loadFiles(currentFolderId || currentCategoryId);
+  }
+
+  // ── 分享圖庫連結 ──────────────────────────
+
+  function copyGalleryLink() {
+    const id = currentFolderId || currentCategoryId;
+    if (!id) { alert('請先選擇資料夾'); return; }
+    const name = currentFolderName || currentCategoryName;
+    const base = location.href.replace(/[^\/]*$/, '');
+    const url = `${base}gallery.html?folderId=${id}&name=${encodeURIComponent(name)}`;
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = document.getElementById('share-gallery-btn');
+      btn.textContent = '✓ 已複製';
+      btn.style.color = '#3B6D11';
+      setTimeout(() => { btn.textContent = '🔗 分享'; btn.style.color = ''; }, 2000);
+    });
   }
 
   // ── 檢視切換 ─────────────────────────────
