@@ -711,22 +711,43 @@ async function summarizeAudio(driveToken, env, fileId, fileName, headers) {
   if (state !== 'ACTIVE') throw new Error('Gemini 檔案處理逾時，請稍後再試');
 
   // 4. 呼叫 Gemini 整理重點
-  const prompt = `這是一段基督教會聚會的錄音，請以繁體中文整理：
+  const prompt = `
+這是一段基督教會聚會的錄音，請以繁體中文整理成一份「聚會講義」：
 
-## 摘要
-以段落形式整理聚會主要教導與分享重點（3–5段，每段勿超過 200 字）。
+# <h2>今日主題：....<h2>
 
-## 聖經經文複習
+📍 第一大點標題
+📖 核心經文：[書名 章:節]
+💡 教導重點：
+- [內容：請以條列式整理該段落核心教導，每點約 50-100 字]
+- [內容：...]
+
+📍 第二大點標題
+📖 核心經文：[書名 章:節]
+💡 教導重點：
+- [內容：...]
+
+（請依據錄音長度，整理 3–5 個大點）
+
+---
+
+# 📖 聖經經文複習
 列出音頻中提及的所有聖經經文，格式：
-- 書名 章:節 ── 簡述重點
+- 書名 章:節 ── 完整經文(和合本-神版)
 
-注意：
-- 人名只用姓氏加「弟兄」或「姊妹」（如：陳弟兄、王姊妹），不呈現全名
-- 以繁體中文撰寫
-- 只整理音頻實際提到的內容，勿自行補充`;
+---
+
+# ⏱️ 整理日期：[今天日期]
+
+# 📝 注意事項
+- 格式限制：嚴格禁止使用雙星號（**），確保匯入 Notion 後畫面簡潔。
+- 人名規範：只用姓氏加「弟兄」或「姊妹」（如：陳弟兄、王姊妹），不呈現全名。
+- 聖經版本：和合本-神版，禁止使用"上帝"。
+- 真實性：只整理音頻實際提到的內容，勿自行補充。
+  `;
 
   const genRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash:generateContent?key=${GEMINI_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -746,7 +767,7 @@ async function summarizeAudio(driveToken, env, fileId, fileName, headers) {
 
   // 5. 寫入 Notion
   const today = new Date().toISOString().slice(0, 10);
-  const title = `${fileName.replace(/\.mp3$/i, '')} — ${today}`;
+  const title = `${fileName.replace(/\.mp3$/i, '')}  編:${today}`;
 
   const notionRes = await fetch('https://api.notion.com/v1/pages', {
     method: 'POST',
