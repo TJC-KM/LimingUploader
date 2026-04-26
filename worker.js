@@ -364,6 +364,12 @@ async function renameItem(token, fileId, newName, headers) {
     }
   );
   const data = await res.json();
+  if (!res.ok) {
+    return new Response(
+      JSON.stringify({ error: data.error?.message || '改名失敗' }),
+      { status: res.status, headers: { ...headers, 'Content-Type': 'application/json' } }
+    );
+  }
   return new Response(JSON.stringify(data), {
     status: res.status,
     headers: { ...headers, 'Content-Type': 'application/json' },
@@ -384,6 +390,12 @@ async function moveItem(token, fileId, fromParentId, headers) {
     }
   );
   const data = await res.json();
+  if (!res.ok) {
+    return new Response(
+      JSON.stringify({ error: data.error?.message || '移動失敗' }),
+      { status: res.status, headers: { ...headers, 'Content-Type': 'application/json' } }
+    );
+  }
   return new Response(JSON.stringify(data), {
     status: res.status,
     headers: { ...headers, 'Content-Type': 'application/json' },
