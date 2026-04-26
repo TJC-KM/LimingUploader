@@ -318,7 +318,7 @@
         <span class="badge" id="current-folder-badge">請先選擇資料夾</span>
         <button class="btn-view-toggle" id="view-toggle-btn" onclick="toggleViewMode()" title="切換顯示方式">≡ 清單</button>
         <button class="btn-view-toggle" id="share-gallery-btn" onclick="copyGalleryLink()" title="複製圖庫連結">🔗 分享</button>
-        <a href="https://docs.google.com/spreadsheets/d/1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k/edit" onclick="openExternal(this.href);return false;" class="btn-view-toggle" style="text-decoration:none;" title="LINE 排程總表">總表</a>
+        <a id="sheet-btn" href="https://docs.google.com/spreadsheets/d/1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k/edit" onclick="openExternal(this.href);return false;" class="btn-view-toggle" style="text-decoration:none;display:none;" title="LINE 排程總表">總表</a>
       </div>
       <div id="file-list">
         <div class="empty-files">請先選擇資料夾</div>
@@ -494,6 +494,7 @@
     updateDriveBtn();
     loadFolders();
     loadFiles(id);
+    document.getElementById('sheet-btn').style.display = cat?.linePublish ? '' : 'none';
     // 類別根目錄也可上傳（除非 noUpload）
     const noUpload = cat?.noUpload;
     if (noUpload) {
@@ -513,6 +514,7 @@
     folderStack = [];
     document.getElementById('folder-view').style.display = 'none';
     document.getElementById('category-view').style.display = 'block';
+    document.getElementById('sheet-btn').style.display = 'none';
   }
 
   function goToStackLevel(index) {
