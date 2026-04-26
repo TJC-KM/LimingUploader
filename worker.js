@@ -206,6 +206,12 @@ export default {
         return await addScheduleRow(token, body, headers);
       }
 
+      // 音檔重點整理（需要密碼）
+      if (path === '/summarize' && method === 'POST') {
+        const { fileId, fileName } = await request.json();
+        return await summarizeAudio(token, env, fileId, fileName, headers);
+      }
+
       // 找不到對應路由
       return new Response('Not found', { status: 404, headers });
 
@@ -643,4 +649,152 @@ async function readXlsxAsSheet(token, fileId, headers) {
   return new Response(JSON.stringify({ source: 'zip', sharedStrings, grid }), {
     headers: { ...headers, 'Content-Type': 'application/json' },
   });
+}
+
+// ========================================
+// 音檔重點整理：Drive → Gemini → Notion
+// ========================================
+async function summarizeAudio(driveToken, env, fileId, fileName, headers) {
+  const GEMINI_KEY = env.GEMINI_API_KEY;
+  const NOTION_TOKEN = env.NOTION_TOKEN;
+  const NOTION_PAGE_ID = env.NOTION_PARENT_PAGE_ID;
+
+  if (!GEMINI_KEY)    throw new Error('未設定 GEMINI_API_KEY 環境變數');
+  if (!NOTION_TOKEN)  throw new Error('未設定 NOTION_TOKEN 環境變數');
+  if (!NOTION_PAGE_ID) throw new Error('未設定 NOTION_PARENT_PAGE_ID 環境變數');
+
+  // 1. 從 Google Drive 下載音檔
+  const dlRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
+    { headers: { Authorization: `Bearer ${driveToken}` } }
+  );
+  if (!dlRes.ok) throw new Error(`Drive 下載失敗 (${dlRes.status})`);
+  const audioBytes = await dlRes.arrayBuffer();
+
+  // 2. 上傳到 Gemini Files API（multipart）
+  const enc = new TextEncoder();
+  const boundary = 'gem_' + Date.now();
+  const meta = JSON.stringify({ file: { display_name: fileName } });
+  const head = enc.encode(
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n` +
+    `--${boundary}\r\nContent-Type: audio/mpeg\r\n\r\n`
+  );
+  const tail = enc.encode(`\r\n--${boundary}--`);
+  const body = new Uint8Array(head.byteLength + audioBytes.byteLength + tail.byteLength);
+  body.set(head);
+  body.set(new Uint8Array(audioBytes), head.byteLength);
+  body.set(tail, head.byteLength + audioBytes.byteLength);
+
+  const upRes = await fetch(
+    `https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=multipart&key=${GEMINI_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+      body,
+    }
+  );
+  const upData = await upRes.json();
+  if (!upData.file?.uri) throw new Error('Gemini 上傳失敗：' + JSON.stringify(upData));
+
+  const fileUri      = upData.file.uri;
+  const geminiName   = upData.file.name;
+
+  // 3. 等待檔案狀態變為 ACTIVE
+  let state = upData.file.state || 'PROCESSING';
+  for (let i = 0; i < 6 && state !== 'ACTIVE'; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+    const chk = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/${geminiName}?key=${GEMINI_KEY}`
+    );
+    state = (await chk.json()).state;
+  }
+  if (state !== 'ACTIVE') throw new Error('Gemini 檔案處理逾時，請稍後再試');
+
+  // 4. 呼叫 Gemini 整理重點
+  const prompt = `這是一段基督教會聚會的錄音，請以繁體中文整理：
+
+## 摘要
+以段落形式整理聚會主要教導與分享重點（3–5段，每段勿超過 200 字）。
+
+## 聖經經文複習
+列出音頻中提及的所有聖經經文，格式：
+- 書名 章:節 ── 簡述重點
+
+注意：
+- 人名只用姓氏加「弟兄」或「姊妹」（如：陳弟兄、王姊妹），不呈現全名
+- 以繁體中文撰寫
+- 只整理音頻實際提到的內容，勿自行補充`;
+
+  const genRes = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash:generateContent?key=${GEMINI_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [
+          { file_data: { mime_type: 'audio/mpeg', file_uri: fileUri } },
+          { text: prompt }
+        ]}],
+        generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
+      }),
+    }
+  );
+  const genData = await genRes.json();
+  if (genData.error) throw new Error('Gemini 生成失敗：' + genData.error.message);
+  const text = genData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  if (!text) throw new Error('Gemini 未回傳內容');
+
+  // 5. 寫入 Notion
+  const today = new Date().toISOString().slice(0, 10);
+  const title = `${fileName.replace(/\.mp3$/i, '')} — ${today}`;
+
+  const notionRes = await fetch('https://api.notion.com/v1/pages', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${NOTION_TOKEN}`,
+      'Notion-Version': '2022-06-28',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      parent: { page_id: NOTION_PAGE_ID },
+      properties: { title: { title: [{ text: { content: title } }] } },
+      children: markdownToNotionBlocks(text),
+    }),
+  });
+  const notionData = await notionRes.json();
+  if (notionData.object === 'error') throw new Error('Notion 寫入失敗：' + notionData.message);
+
+  return new Response(
+    JSON.stringify({ ok: true, notionUrl: notionData.url, title }),
+    { headers: { ...headers, 'Content-Type': 'application/json' } }
+  );
+}
+
+// Gemini 回傳的 Markdown 轉換成 Notion blocks
+function markdownToNotionBlocks(text) {
+  const blocks = [];
+  for (const raw of text.split('\n')) {
+    const line = raw.trimEnd();
+    if (!line.trim()) continue;
+    if (blocks.length >= 98) break; // Notion 上限 100 blocks
+
+    if (line.startsWith('## ')) {
+      blocks.push({ object: 'block', type: 'heading_2',
+        heading_2: { rich_text: [{ text: { content: line.slice(3).trim() } }] } });
+    } else if (line.startsWith('# ')) {
+      blocks.push({ object: 'block', type: 'heading_1',
+        heading_1: { rich_text: [{ text: { content: line.slice(2).trim() } }] } });
+    } else if (/^[-•]\s/.test(line)) {
+      blocks.push({ object: 'block', type: 'bulleted_list_item',
+        bulleted_list_item: { rich_text: [{ text: { content: line.replace(/^[-•]\s+/, '').slice(0, 2000) } }] } });
+    } else {
+      blocks.push({ object: 'block', type: 'paragraph',
+        paragraph: { rich_text: [{ text: { content: line.trim().slice(0, 2000) } }] } });
+    }
+  }
+  blocks.push({ object: 'block', type: 'divider', divider: {} });
+  blocks.push({ object: 'block', type: 'paragraph',
+    paragraph: { rich_text: [{ text: { content: '由 Gemini AI 自動整理' },
+      annotations: { italic: true, color: 'gray' } }] } });
+  return blocks;
 }

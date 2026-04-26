@@ -283,6 +283,23 @@
   </div>
 </div>
 
+<!-- 重點整理彈窗 -->
+<div class="modal-overlay" id="summarize-modal">
+  <div class="modal">
+    <h3>重點整理</h3>
+    <p id="summarize-filename" style="font-size:12px;color:#555;margin-bottom:14px;word-break:break-all;"></p>
+    <div id="summarize-progress" style="text-align:center;padding:16px 0;font-size:13px;color:#555;">正在處理，請稍候（約 1–3 分鐘）...</div>
+    <div class="error-msg" id="summarize-error"></div>
+    <div class="modal-btns" id="summarize-done-btns" style="display:none;">
+      <button class="btn-secondary" onclick="closeSummarizeModal()">關閉</button>
+      <a id="summarize-notion-link" href="#" onclick="openExternal(this.href);return false;" class="btn-primary" style="text-decoration:none;display:flex;align-items:center;justify-content:center;">開啟 Notion 頁面</a>
+    </div>
+    <div class="modal-btns" id="summarize-cancel-btns">
+      <button class="btn-secondary" onclick="closeSummarizeModal()">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- 主畫面（直接顯示，不需登入） -->
 <div class="container">
   <div class="top-bar">
@@ -715,6 +732,9 @@
         const lineBtn = showLine
           ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>`
           : '';
+        const summarizeBtn = isLoggedIn && f.mimeType && f.mimeType.startsWith('audio/')
+          ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>`
+          : '';
         return `
           <div class="file-row">
             <div class="file-type-icon">${getFileIcon(f.mimeType)}</div>
@@ -726,7 +746,7 @@
             <div class="file-actions">
               <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a>
               <a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>
-              ${renameBtn}${deleteBtn}${lineBtn}
+              ${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}
             </div>
           </div>
         `;
@@ -778,6 +798,9 @@
         const lineBtn = showLine
           ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>`
           : '';
+        const summarizeBtn = isLoggedIn && f.mimeType && f.mimeType.startsWith('audio/')
+          ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>`
+          : '';
         return `
           <div class="file-row">
             <div class="file-type-icon">${getFileIcon(f.mimeType)}</div>
@@ -789,7 +812,7 @@
             <div class="file-actions">
               <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a>
               <a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>
-              ${renameBtn}${deleteBtn}${lineBtn}
+              ${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}
             </div>
           </div>
         `;
@@ -1217,6 +1240,45 @@ async function uploadFile(file) {
   }
 
   // ── 檢視切換 ─────────────────────────────
+
+  // ── 重點整理 ──────────────────────────────
+
+  async function openSummarizeModal(fileId, fileName) {
+    document.getElementById('summarize-filename').textContent = fileName;
+    document.getElementById('summarize-progress').textContent = '正在處理，請稍候（約 1–3 分鐘）...';
+    document.getElementById('summarize-error').textContent = '';
+    document.getElementById('summarize-done-btns').style.display = 'none';
+    document.getElementById('summarize-cancel-btns').style.display = '';
+    document.getElementById('summarize-modal').classList.add('show');
+
+    try {
+      const res = await fetch(`${WORKER_URL}/summarize`, {
+        method: 'POST',
+        headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId, fileName }),
+        signal: AbortSignal.timeout(300000),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('summarize-progress').textContent = '✓ 整理完成';
+        document.getElementById('summarize-notion-link').href = data.notionUrl;
+        document.getElementById('summarize-done-btns').style.display = '';
+        document.getElementById('summarize-cancel-btns').style.display = 'none';
+      } else {
+        throw new Error(data.error || '處理失敗');
+      }
+    } catch (e) {
+      document.getElementById('summarize-progress').textContent = '';
+      const msg = (e.name === 'TimeoutError' || e.name === 'AbortError')
+        ? '處理逾時（免費方案限制 30 秒），建議升級 Cloudflare Workers 付費方案後重試'
+        : '錯誤：' + e.message;
+      document.getElementById('summarize-error').textContent = msg;
+    }
+  }
+
+  function closeSummarizeModal() {
+    document.getElementById('summarize-modal').classList.remove('show');
+  }
 
   function toggleViewMode() {
     viewMode = viewMode === 'grid' ? 'list' : 'grid';
