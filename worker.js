@@ -1171,13 +1171,17 @@ async function writeConvertLineSchedule(token, scheduleRows, usersMap) {
 
   if (rows.length === 0) return 0;
 
-  await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_HELPER_SHEET_ID}/values/Schedule!A:G/append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_HELPER_SHEET_ID}/values/Schedule!A:G:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
     {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values: rows }),
     }
   );
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(`LINE 排程寫入失敗：${err.error?.message || res.status}`);
+  }
   return rows.length;
 }
