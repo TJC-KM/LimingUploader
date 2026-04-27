@@ -20,6 +20,9 @@ const SCHEDULE_SOURCE_FOLDER_ID = '1dCj76vGVwzOLnzUg2gPpbCne5HSxz7N1';
 // 安排表輸出資料夾（產生 Google Sheet，西元年命名）
 const SCHEDULE_OUTPUT_FOLDER_ID = '1gCCmXEbRLQMgZsUvhk5y7K3rTtKSTCdM';
 
+// 安排表 LINE 排程 Sheet（寫入工作提醒）
+const SCHEDULE_LINE_SHEET_ID = '1F7fP03oexK4lrerV-hRHM1ooKirwZnuguCerGK6jogo';
+
 // ========================================
 // CORS 設定：讓瀏覽器允許跨網域請求
 // 每次請求都會帶上這些 headers
@@ -909,6 +912,10 @@ async function convertSchedule(token, env, fileName, headers) {
   // 8. 新增或更新對應月份頁籤，寫入清單資料
   await writeScheduleTab(token, yearSheetId, tabName, scheduleRows);
 
+  // 9. 從 Users 頁籤取得 userId 對照表，寫入 LINE 排程
+  const usersMap = await getUsersMap(token);
+  const lineCount = await writeConvertLineSchedule(token, scheduleRows, usersMap);
+
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${yearSheetId}/edit#gid=0`;
   return new Response(JSON.stringify({
     success: true,
@@ -916,6 +923,7 @@ async function convertSchedule(token, env, fileName, headers) {
     sheetUrl,
     tabName,
     rowCount: scheduleRows.length,
+    lineCount,
   }), { headers: { ...headers, 'Content-Type': 'application/json' } });
 }
 
@@ -1096,4 +1104,55 @@ async function writeScheduleTab(token, spreadsheetId, tabName, rows) {
       body: JSON.stringify({ values }),
     }
   );
+}
+
+// 從 SHEET_ID 的 Users 頁籤讀取姓名 → userId 對照表
+async function getUsersMap(token) {
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Users!A:B`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const data = await res.json();
+  const map = {};
+  const rows = (data.values || []).slice(1); // 跳過標題列
+  for (const [userId, userName] of rows) {
+    if (userId && userName) map[userName.trim()] = userId.trim();
+  }
+  return map;
+}
+
+// 計算工作日前三天的發送時間（台灣時間 08:00）
+function calcSendTime(dateStr) {
+  // dateStr 格式：2026/5/1
+  const [y, m, d] = dateStr.split('/').map(Number);
+  const date = new Date(y, m - 1, d);
+  date.setDate(date.getDate() - 3);
+  const yy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yy}/${mm}/${dd} 08:00`;
+}
+
+// 寫入 LINE 排程 Sheet（一人一筆）
+async function writeConvertLineSchedule(token, scheduleRows, usersMap) {
+  const rows = scheduleRows
+    .filter(r => r.person && r.date && usersMap[r.person.trim()])
+    .map(r => {
+      const userId  = usersMap[r.person.trim()];
+      const sendTime = calcSendTime(r.date);
+      const content  = `${r.date}有被安排${r.job}工作，要記得`;
+      return [sendTime, userId, 'text', content, '', '', 'pending'];
+    });
+
+  if (rows.length === 0) return 0;
+
+  await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_LINE_SHEET_ID}/values/Schedule!A:G:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: rows }),
+    }
+  );
+  return rows.length;
 }
