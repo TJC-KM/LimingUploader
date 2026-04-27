@@ -368,7 +368,7 @@
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
-  document.getElementById('version-footer').textContent = '最後發布時間：2026-04-27 15:26';
+  document.getElementById('version-footer').textContent = '最後發布時間：2026-04-27 15:41';
 
   let CATEGORIES = []; // 從 Google Sheet 動態載入
 
@@ -1318,7 +1318,7 @@ async function uploadFile(file) {
     try {
       const res = await fetch(`${WORKER_URL}/convert`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Password': userPassword },
+        headers: { 'Content-Type': 'application/json', 'X-Password': password },
         body: JSON.stringify({ fileName }),
       });
       const data = await res.json();
