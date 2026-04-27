@@ -368,7 +368,7 @@
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
-  document.getElementById('version-footer').textContent = '最後發布時間：2026-04-27 15:56';
+  document.getElementById('version-footer').textContent = '最後發布時間：2026-04-27 15:59';
 
   let CATEGORIES = []; // 從 Google Sheet 動態載入
 
@@ -1324,7 +1324,8 @@ async function uploadFile(file) {
       const data = await res.json();
       document.getElementById('convert-progress').style.display = 'none';
       if (!res.ok || data.error) {
-        document.getElementById('convert-error').textContent = data.error || '轉檔失敗';
+        const dbg = data.debug ? `\n[debug] rows:${data.debug.rawDataRows} raw:${data.debug.geminiRaw}` : '';
+        document.getElementById('convert-error').textContent = (data.error || '轉檔失敗') + dbg;
         return;
       }
       document.getElementById('convert-sheet-link').href = data.sheetUrl;

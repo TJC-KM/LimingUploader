@@ -890,9 +890,10 @@ async function convertSchedule(token, env, fileName, headers) {
   }
 
   if (scheduleRows.length === 0) {
-    return new Response(JSON.stringify({ error: 'Gemini 解析結果為空，請確認安排表格式' }), {
-      status: 500, headers: { ...headers, 'Content-Type': 'application/json' }
-    });
+    return new Response(JSON.stringify({
+      error: 'Gemini 解析結果為空',
+      debug: { rawDataRows: rawData.length, geminiRaw: scheduleRows.__raw__ || '' },
+    }), { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } });
   }
 
   // 7. 在輸出資料夾找或建立年度 Google Sheet
@@ -984,7 +985,7 @@ async function parseScheduleWithGemini(env, rawData, year, month) {
 3. 忽略表格底部的備註說明文字
 4. 特殊活動行（查經、訓練、聚會等）若有指定人員也請納入
 5. 姓名保留原始文字，不要增刪
-6. 只輸出 JSON 陣列，不要其他說明
+6. 只輸出 JSON 陣列，不要任何說明文字或 markdown 標記
 
 原始資料：
 ${tableStr}`;
@@ -996,13 +997,26 @@ ${tableStr}`;
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json' },
       }),
     }
   );
   const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-  try { return JSON.parse(text); } catch { return []; }
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+  // 從回傳文字中抽取 JSON 陣列（相容 ```json ... ``` 或純文字）
+  const match = rawText.match(/\[[\s\S]*\]/);
+  if (!match) {
+    const empty = [];
+    empty.__raw__ = rawText.slice(0, 500);
+    return empty;
+  }
+  try {
+    return JSON.parse(match[0]);
+  } catch {
+    const empty = [];
+    empty.__raw__ = rawText.slice(0, 500);
+    return empty;
+  }
 }
 
 // 在輸出資料夾找或建立年度 Google Sheet
