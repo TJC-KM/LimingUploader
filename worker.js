@@ -917,6 +917,7 @@ async function convertSchedule(token, env, fileName, headers) {
   const lineCount = await writeConvertLineSchedule(token, scheduleRows, usersMap);
 
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${yearSheetId}/edit#gid=0`;
+  const uniquePersons = [...new Set(scheduleRows.map(r => r.person).filter(Boolean))];
   return new Response(JSON.stringify({
     success: true,
     sheetId: yearSheetId,
@@ -924,6 +925,10 @@ async function convertSchedule(token, env, fileName, headers) {
     tabName,
     rowCount: scheduleRows.length,
     lineCount,
+    debug: {
+      usersMapKeys: Object.keys(usersMap),
+      schedulePersons: uniquePersons,
+    },
   }), { headers: { ...headers, 'Content-Type': 'application/json' } });
 }
 
