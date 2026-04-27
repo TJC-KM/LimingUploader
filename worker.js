@@ -913,9 +913,6 @@ async function convertSchedule(token, env, fileName, headers) {
   await writeScheduleTab(token, yearSheetId, tabName, scheduleRows);
 
   // 9. 從 Users 頁籤取得 userId 對照表，寫入 LINE 排程
-  const usersMap = await getUsersMap(token);
-  const { written: lineWritten, unmatched: lineUnmatched } = await writeConvertLineSchedule(token, scheduleRows, usersMap);
-
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${yearSheetId}/edit#gid=0`;
   return new Response(JSON.stringify({
     success: true,
@@ -923,8 +920,6 @@ async function convertSchedule(token, env, fileName, headers) {
     sheetUrl,
     tabName,
     rowCount: scheduleRows.length,
-    lineWritten,
-    lineUnmatched,
   }), { headers: { ...headers, 'Content-Type': 'application/json' } });
 }
 
