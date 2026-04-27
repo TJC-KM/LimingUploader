@@ -997,7 +997,7 @@ async function parseScheduleWithGemini(env, rawData, year, month) {
 ${tableStr}`;
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${env.GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1034,25 +1034,22 @@ async function findOrCreateYearSheet(token, title) {
   const searchData = await searchRes.json();
   if (searchData.files?.length > 0) return searchData.files[0].id;
 
-  // 新建 Google Sheet
-  const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ properties: { title } }),
-  });
-  const sheet = await createRes.json();
-  const spreadsheetId = sheet.spreadsheetId;
-
-  // 移到輸出資料夾
-  await fetch(
-    `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?addParents=${SCHEDULE_OUTPUT_FOLDER_ID}&removeParents=root&supportsAllDrives=true`,
+  // 直接用 Drive API 在 Shared Drive 建立，不經過個人空間（避免個人配額問題）
+  const createRes = await fetch(
+    'https://www.googleapis.com/drive/v3/files?supportsAllDrives=true',
     {
-      method: 'PATCH',
+      method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        name: title,
+        mimeType: 'application/vnd.google-apps.spreadsheet',
+        parents: [SCHEDULE_OUTPUT_FOLDER_ID],
+      }),
     }
   );
-  return spreadsheetId;
+  const created = await createRes.json();
+  if (!created.id) throw new Error(`建立年度 Sheet 失敗：${created.error?.message || JSON.stringify(created)}`);
+  return created.id;
 }
 
 // 在指定 Google Sheet 新增或更新頁籤，寫入安排資料
