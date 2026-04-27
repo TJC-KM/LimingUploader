@@ -79,7 +79,7 @@
       <button class="btn-back" id="back-btn" style="display:none" onclick="goBack()">← 返回</button>
       <div class="page-title">📁 <span class="folder-name-span" id="folder-name-display">黎明寶庫</span></div>
     </div>
-    <button class="btn-copy-link" id="copy-btn" onclick="copyLink()">🔗 複製連結</button>
+    <button class="btn-copy-link" id="copy-btn" onclick="copyLink()">🔗 分享</button>
   </div>
 
   <div id="content"><div class="msg">載入中...</div></div>
@@ -286,7 +286,7 @@
       const btn = document.getElementById('copy-btn');
       btn.textContent = '✓ 已複製';
       btn.classList.add('copied');
-      setTimeout(() => { btn.textContent = '🔗 複製連結'; btn.classList.remove('copied'); }, 2000);
+      setTimeout(() => { btn.textContent = '🔗 分享'; btn.classList.remove('copied'); }, 2000);
     });
   }
 
