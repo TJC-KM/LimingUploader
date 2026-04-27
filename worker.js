@@ -14,6 +14,12 @@ const SHEET_ID = '1xuSBVb1bonQldMgaOZfhu4T2knqt91AJjTzG-YqoBn4';
 // LINE 排程 Sheet ID
 const SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k';
 
+// 安排表來源資料夾（xlsx 原始檔，民國年命名）
+const SCHEDULE_SOURCE_FOLDER_ID = '1dCj76vGVwzOLnzUg2gPpbCne5HSxz7N1';
+
+// 安排表輸出資料夾（產生 Google Sheet，西元年命名）
+const SCHEDULE_OUTPUT_FOLDER_ID = '1gCCmXEbRLQMgZsUvhk5y7K3rTtKSTCdM';
+
 // ========================================
 // CORS 設定：讓瀏覽器允許跨網域請求
 // 每次請求都會帶上這些 headers
@@ -210,6 +216,12 @@ export default {
       if (path === '/summarize' && method === 'POST') {
         const { fileId, fileName } = await request.json();
         return await summarizeAudio(token, env, fileId, fileName, headers);
+      }
+
+      // 安排表轉檔（需要密碼）
+      if (path === '/convert' && method === 'POST') {
+        const { fileName } = await request.json();
+        return await convertSchedule(token, env, fileName, headers);
       }
 
       // 找不到對應路由
@@ -830,4 +842,229 @@ function markdownToNotionBlocks(text) {
     paragraph: { rich_text: [{ text: { content: '由 Gemini AI 自動整理' },
       annotations: { italic: true, color: 'gray' } }] } });
   return blocks;
+}
+
+// ========================================
+// 安排表轉檔功能
+// ========================================
+
+// 主流程：讀 xlsx → Gemini 解析 → 寫入 Google Sheet
+async function convertSchedule(token, env, fileName, headers) {
+  // 1. 解析西元年月（支援 yyyy-MM、yyyyMM 開頭）
+  const ym = parseScheduleYearMonth(fileName);
+  if (!ym) {
+    return new Response(JSON.stringify({ error: '無法從檔名解析年月，請確認格式為 yyyy-MM 或 yyyyMM' }), {
+      status: 400, headers: { ...headers, 'Content-Type': 'application/json' }
+    });
+  }
+  const { year, month } = ym;
+  const rocYear = year - 1911; // 民國年
+  const tabName = `${rocYear}${month}`; // 例：11505
+
+  // 2. 在來源資料夾找對應 xlsx（民國年命名）
+  const xlsxFile = await findScheduleXlsx(token, rocYear, month);
+  if (!xlsxFile) {
+    return new Response(JSON.stringify({ error: `找不到來源檔案：${rocYear}${month}安排表.xlsx（資料夾 A）` }), {
+      status: 404, headers: { ...headers, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // 3. 將 xlsx 暫時複製為 Google Sheet 以便讀取
+  const tempSheet = await copyFileAsGoogleSheet(token, xlsxFile.id, `_temp_convert_${tabName}`);
+  if (!tempSheet?.id) {
+    return new Response(JSON.stringify({ error: '複製 xlsx 為 Google Sheet 失敗' }), {
+      status: 500, headers: { ...headers, 'Content-Type': 'application/json' }
+    });
+  }
+
+  let scheduleRows = [];
+  try {
+    // 4. 讀取 sheet 所有資料
+    const rawData = await readAllSheetValues(token, tempSheet.id);
+
+    // 5. 用 Gemini 解析結構化資料
+    scheduleRows = await parseScheduleWithGemini(env, rawData, year, month);
+  } finally {
+    // 6. 無論成功與否都刪除暫存 sheet
+    await driveDeleteFile(token, tempSheet.id);
+  }
+
+  if (scheduleRows.length === 0) {
+    return new Response(JSON.stringify({ error: 'Gemini 解析結果為空，請確認安排表格式' }), {
+      status: 500, headers: { ...headers, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // 7. 在輸出資料夾找或建立年度 Google Sheet
+  const yearSheetTitle = `${year}年安排表`;
+  const yearSheetId = await findOrCreateYearSheet(token, yearSheetTitle);
+
+  // 8. 新增或更新對應月份頁籤，寫入清單資料
+  await writeScheduleTab(token, yearSheetId, tabName, scheduleRows);
+
+  const sheetUrl = `https://docs.google.com/spreadsheets/d/${yearSheetId}/edit#gid=0`;
+  return new Response(JSON.stringify({
+    success: true,
+    sheetId: yearSheetId,
+    sheetUrl,
+    tabName,
+    rowCount: scheduleRows.length,
+  }), { headers: { ...headers, 'Content-Type': 'application/json' } });
+}
+
+// 從檔名解析西元年月
+function parseScheduleYearMonth(fileName) {
+  let m = fileName.match(/^(\d{4})-(\d{2})/);
+  if (m) return { year: parseInt(m[1]), month: m[2] };
+  m = fileName.match(/^(\d{4})(\d{2})/);
+  if (m) return { year: parseInt(m[1]), month: m[2] };
+  return null;
+}
+
+// 在來源資料夾搜尋民國年命名的 xlsx
+async function findScheduleXlsx(token, rocYear, month) {
+  const q = `'${SCHEDULE_SOURCE_FOLDER_ID}' in parents and name contains '${rocYear}${month}' and name contains '安排表' and trashed=false`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&supportsAllDrives=true&includeItemsFromAllDrives=true&fields=files(id,name)`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const data = await res.json();
+  return data.files?.[0] || null;
+}
+
+// 將 Drive 檔案複製為 Google Sheet 格式
+async function copyFileAsGoogleSheet(token, fileId, name) {
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}/copy?supportsAllDrives=true`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mimeType: 'application/vnd.google-apps.spreadsheet', name }),
+    }
+  );
+  return await res.json(); // { id, name, ... }
+}
+
+// 讀取 Google Sheet 所有欄位值
+async function readAllSheetValues(token, spreadsheetId) {
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A:Z`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const data = await res.json();
+  return data.values || [];
+}
+
+// 刪除 Drive 檔案
+async function driveDeleteFile(token, fileId) {
+  await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
+  );
+}
+
+// 用 Gemini 解析安排表，回傳 [{ date, person, job }]
+async function parseScheduleWithGemini(env, rawData, year, month) {
+  const tableStr = rawData.map(row => row.join('\t')).join('\n');
+  const prompt = `你是台灣教會聚會安排表資料整理助手。
+以下是一份${year}年${parseInt(month)}月聚會安排表，從 Excel 讀出（Tab 分隔，可能含合併儲存格殘留的空值）。
+
+請將所有人員工作安排整理成 JSON 陣列，每筆格式為：
+{ "date": "${year}/${parseInt(month)}/<日>", "person": "<姓名>", "job": "<工作名稱>" }
+
+規則：
+1. 同一日期可能分多行（合併儲存格），請對應正確日期
+2. 工作欄位為「-」或空白則忽略
+3. 忽略表格底部的備註說明文字
+4. 特殊活動行（查經、訓練、聚會等）若有指定人員也請納入
+5. 姓名保留原始文字，不要增刪
+6. 只輸出 JSON 陣列，不要其他說明
+
+原始資料：
+${tableStr}`;
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json' },
+      }),
+    }
+  );
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+  try { return JSON.parse(text); } catch { return []; }
+}
+
+// 在輸出資料夾找或建立年度 Google Sheet
+async function findOrCreateYearSheet(token, title) {
+  // 先搜尋是否已存在
+  const q = `'${SCHEDULE_OUTPUT_FOLDER_ID}' in parents and name='${title}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`;
+  const searchRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&supportsAllDrives=true&includeItemsFromAllDrives=true&fields=files(id)`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const searchData = await searchRes.json();
+  if (searchData.files?.length > 0) return searchData.files[0].id;
+
+  // 新建 Google Sheet
+  const createRes = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ properties: { title } }),
+  });
+  const sheet = await createRes.json();
+  const spreadsheetId = sheet.spreadsheetId;
+
+  // 移到輸出資料夾
+  await fetch(
+    `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?addParents=${SCHEDULE_OUTPUT_FOLDER_ID}&removeParents=root&supportsAllDrives=true`,
+    {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }
+  );
+  return spreadsheetId;
+}
+
+// 在指定 Google Sheet 新增或更新頁籤，寫入安排資料
+async function writeScheduleTab(token, spreadsheetId, tabName, rows) {
+  // 取得現有頁籤清單
+  const metaRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const meta = await metaRes.json();
+  const existing = meta.sheets?.find(s => s.properties.title === tabName);
+
+  if (existing) {
+    // 清空現有頁籤
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(tabName)}:clear`,
+      { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: '{}' }
+    );
+  } else {
+    // 新增頁籤
+    await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: [{ addSheet: { properties: { title: tabName } } }] }),
+      }
+    );
+  }
+
+  // 寫入標題列 + 資料
+  const values = [['日期', '人員', '工作'], ...rows.map(r => [r.date, r.person, r.job])];
+  await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(tabName)}!A1?valueInputOption=RAW`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values }),
+    }
+  );
 }
