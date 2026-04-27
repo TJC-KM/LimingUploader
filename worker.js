@@ -932,42 +932,23 @@ async function findScheduleXlsx(token, rocYear, month) {
 
 // 將 Drive 檔案複製為 Google Sheet 格式
 // 下載 xlsx 再以 multipart upload 轉為 Google Sheet（比 files.copy 更可靠）
+// files.copy 直接複製並轉換格式，指定 parent 為 Shared Drive 輸出資料夾避免個人配額問題
 async function importXlsxAsGoogleSheet(token, fileId, name) {
-  // 下載 xlsx 原始 bytes
-  const dlRes = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  if (!dlRes.ok) return { error: { message: `下載失敗 ${dlRes.status}` } };
-  const xlsxBytes = await dlRes.arrayBuffer();
-
-  // multipart upload：metadata + file，mimeType 設為 Google Sheet 觸發自動轉換
-  // 指定 parent 為輸出資料夾（Shared Drive），避免佔用個人配額
-  const boundary = '-------314159265358979323846';
-  const metadata = JSON.stringify({ name, mimeType: 'application/vnd.google-apps.spreadsheet', parents: [SCHEDULE_OUTPUT_FOLDER_ID] });
-  const xlsxMime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-
-  const encoder = new TextEncoder();
-  const parts = [
-    encoder.encode(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`),
-    encoder.encode(`--${boundary}\r\nContent-Type: ${xlsxMime}\r\n\r\n`),
-    new Uint8Array(xlsxBytes),
-    encoder.encode(`\r\n--${boundary}--`),
-  ];
-  const total = parts.reduce((s, p) => s + p.byteLength, 0);
-  const body = new Uint8Array(total);
-  let offset = 0;
-  for (const p of parts) { body.set(p, offset); offset += p.byteLength; }
-
-  const upRes = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true',
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}/copy?supportsAllDrives=true`,
     {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary="${boundary}"` },
-      body,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mimeType: 'application/vnd.google-apps.spreadsheet',
+        name,
+        parents: [SCHEDULE_OUTPUT_FOLDER_ID],
+      }),
     }
   );
-  return await upRes.json(); // { id, name, ... } 或 { error: ... }
+  const data = await res.json();
+  if (!res.ok) return { error: data.error || { message: `HTTP ${res.status}` } };
+  return data; // { id, name, ... }
 }
 
 // 讀取 Google Sheet 所有欄位值
