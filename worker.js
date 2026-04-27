@@ -792,17 +792,34 @@ async function summarizeAudio(driveToken, env, fileId, fileName, headers) {
   const text = genData.candidates?.[0]?.content?.parts?.[0]?.text || '';
   if (!text) throw new Error('Gemini 未回傳內容');
 
-  // 5. 寫入 Notion
+  // 5. 寫入 Notion（先確認是否已有相同標題）
   const today = new Date().toISOString().slice(0, 10);
   const title = `${fileName.replace(/\.mp3$/i, '')}  編:${today}`;
 
+  const notionHeaders = {
+    Authorization: `Bearer ${NOTION_TOKEN}`,
+    'Notion-Version': '2022-06-28',
+    'Content-Type': 'application/json',
+  };
+  const searchRes = await fetch('https://api.notion.com/v1/search', {
+    method: 'POST',
+    headers: notionHeaders,
+    body: JSON.stringify({ query: title, filter: { property: 'object', value: 'page' } }),
+  });
+  const searchData = await searchRes.json();
+  const existing = searchData.results?.find(p =>
+    p.properties?.title?.title?.[0]?.plain_text === title
+  );
+  if (existing) {
+    return new Response(
+      JSON.stringify({ ok: true, notionUrl: existing.url, title, duplicate: true }),
+      { headers: { ...headers, 'Content-Type': 'application/json' } }
+    );
+  }
+
   const notionRes = await fetch('https://api.notion.com/v1/pages', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${NOTION_TOKEN}`,
-      'Notion-Version': '2022-06-28',
-      'Content-Type': 'application/json',
-    },
+    headers: notionHeaders,
     body: JSON.stringify({
       parent: { page_id: NOTION_PAGE_ID },
       properties: { title: { title: [{ text: { content: title } }] } },
