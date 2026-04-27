@@ -942,8 +942,9 @@ async function importXlsxAsGoogleSheet(token, fileId, name) {
   const xlsxBytes = await dlRes.arrayBuffer();
 
   // multipart upload：metadata + file，mimeType 設為 Google Sheet 觸發自動轉換
+  // 指定 parent 為輸出資料夾（Shared Drive），避免佔用個人配額
   const boundary = '-------314159265358979323846';
-  const metadata = JSON.stringify({ name, mimeType: 'application/vnd.google-apps.spreadsheet' });
+  const metadata = JSON.stringify({ name, mimeType: 'application/vnd.google-apps.spreadsheet', parents: [SCHEDULE_OUTPUT_FOLDER_ID] });
   const xlsxMime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
   const encoder = new TextEncoder();
