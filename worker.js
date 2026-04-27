@@ -878,9 +878,10 @@ async function convertSchedule(token, env, fileName, headers) {
   }
 
   let scheduleRows = [];
+  let rawData = [];
   try {
     // 4. 讀取 sheet 所有資料
-    const rawData = await readAllSheetValues(token, tempSheet.id);
+    rawData = await readAllSheetValues(token, tempSheet.id);
 
     // 5. 用 Gemini 解析結構化資料
     scheduleRows = await parseScheduleWithGemini(env, rawData, year, month);
