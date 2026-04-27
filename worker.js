@@ -20,8 +20,8 @@ const SCHEDULE_SOURCE_FOLDER_ID = '1dCj76vGVwzOLnzUg2gPpbCne5HSxz7N1';
 // 安排表輸出資料夾（產生 Google Sheet，西元年命名）
 const SCHEDULE_OUTPUT_FOLDER_ID = '1gCCmXEbRLQMgZsUvhk5y7K3rTtKSTCdM';
 
-// 安排表 LINE 排程 Sheet（寫入工作提醒）
-const SCHEDULE_LINE_SHEET_ID = '1F7fP03oexK4lrerV-hRHM1ooKirwZnuguCerGK6jogo';
+// 安排表工作提醒 LINE 排程 Sheet（Helper 帳號發送，與主排程分開）
+const SCHEDULE_HELPER_SHEET_ID = '1F7fP03oexK4lrerV-hRHM1ooKirwZnuguCerGK6jogo';
 
 // ========================================
 // CORS 設定：讓瀏覽器允許跨網域請求
@@ -1147,7 +1147,7 @@ async function writeConvertLineSchedule(token, scheduleRows, usersMap) {
   if (rows.length === 0) return 0;
 
   await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_LINE_SHEET_ID}/values/Schedule!A:G:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_HELPER_SHEET_ID}/values/Schedule!A:G:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
     {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
