@@ -884,17 +884,22 @@ async function convertSchedule(token, env, fileName, headers) {
     rawData = await readAllSheetValues(token, tempSheet.id);
 
     // 5. 用 Gemini 解析結構化資料
-    scheduleRows = await parseScheduleWithGemini(env, rawData, year, month);
+    const geminiResult = await parseScheduleWithGemini(env, rawData, year, month);
+    scheduleRows = geminiResult.rows;
+    if (scheduleRows.length === 0) {
+      return new Response(JSON.stringify({
+        error: 'Gemini 解析結果為空',
+        debug: {
+          rawDataRows: rawData.length,
+          geminiRaw: geminiResult.raw,
+          finishReason: geminiResult.finishReason,
+          apiError: geminiResult.apiError,
+        },
+      }), { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } });
+    }
   } finally {
     // 6. 無論成功與否都刪除暫存 sheet
     await driveDeleteFile(token, tempSheet.id);
-  }
-
-  if (scheduleRows.length === 0) {
-    return new Response(JSON.stringify({
-      error: 'Gemini 解析結果為空',
-      debug: { rawDataRows: rawData.length, geminiRaw: scheduleRows.__raw__ || '' },
-    }), { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } });
   }
 
   // 7. 在輸出資料夾找或建立年度 Google Sheet
@@ -1003,20 +1008,18 @@ ${tableStr}`;
   );
   const data = await res.json();
   const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const finishReason = data.candidates?.[0]?.finishReason || '';
+  const apiError = data.error?.message || '';
 
   // 從回傳文字中抽取 JSON 陣列（相容 ```json ... ``` 或純文字）
   const match = rawText.match(/\[[\s\S]*\]/);
   if (!match) {
-    const empty = [];
-    empty.__raw__ = rawText.slice(0, 500);
-    return empty;
+    return { rows: [], raw: rawText.slice(0, 800), finishReason, apiError };
   }
   try {
-    return JSON.parse(match[0]);
-  } catch {
-    const empty = [];
-    empty.__raw__ = rawText.slice(0, 500);
-    return empty;
+    return { rows: JSON.parse(match[0]), raw: '', finishReason, apiError };
+  } catch (e) {
+    return { rows: [], raw: rawText.slice(0, 800), finishReason, apiError };
   }
 }
 
