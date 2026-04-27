@@ -1114,7 +1114,7 @@ async function writeScheduleTab(token, spreadsheetId, tabName, rows) {
 // 從 SHEET_ID 的 Users 頁籤讀取姓名 → userId 對照表
 async function getUsersMap(token) {
   const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Users!A:B`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_HELPER_SHEET_ID}/values/Users!A:B`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
   const data = await res.json();
