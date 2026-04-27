@@ -1133,12 +1133,31 @@ function calcSendTime(dateStr) {
   return `${yy}/${mm}/${dd} 08:00`;
 }
 
+// 模糊比對：完整 → 後三字 → 後兩字
+function findUserId(usersMap, personName) {
+  const name = personName.trim();
+  if (usersMap[name]) return usersMap[name];
+  if (name.length >= 3) {
+    const last3 = name.slice(-3);
+    for (const [userName, userId] of Object.entries(usersMap)) {
+      if (userName.endsWith(last3)) return userId;
+    }
+  }
+  if (name.length >= 2) {
+    const last2 = name.slice(-2);
+    for (const [userName, userId] of Object.entries(usersMap)) {
+      if (userName.endsWith(last2)) return userId;
+    }
+  }
+  return null;
+}
+
 // 寫入 LINE 排程 Sheet（一人一筆）
 async function writeConvertLineSchedule(token, scheduleRows, usersMap) {
   const rows = scheduleRows
-    .filter(r => r.person && r.date && usersMap[r.person.trim()])
+    .filter(r => r.person && r.date && findUserId(usersMap, r.person))
     .map(r => {
-      const userId  = usersMap[r.person.trim()];
+      const userId   = findUserId(usersMap, r.person);
       const sendTime = calcSendTime(r.date);
       const content  = `${r.date}有被安排${r.job}工作，要記得`;
       return [sendTime, userId, 'text', content, '', '', 'pending'];
