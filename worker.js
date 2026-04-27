@@ -1147,7 +1147,7 @@ async function writeConvertLineSchedule(token, scheduleRows, usersMap) {
   if (rows.length === 0) return 0;
 
   await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_HELPER_SHEET_ID}/values/Schedule!A:G:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_HELPER_SHEET_ID}/values/Schedule!A:G/append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
     {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
