@@ -869,10 +869,10 @@ async function convertSchedule(token, env, fileName, headers) {
     });
   }
 
-  // 3. 將 xlsx 暫時複製為 Google Sheet 以便讀取
-  const tempSheet = await copyFileAsGoogleSheet(token, xlsxFile.id, `_temp_convert_${tabName}`);
+  // 3. 將 xlsx 下載後重新上傳為 Google Sheet（比 copy 更可靠）
+  const tempSheet = await importXlsxAsGoogleSheet(token, xlsxFile.id, `_temp_convert_${tabName}`);
   if (!tempSheet?.id) {
-    return new Response(JSON.stringify({ error: '複製 xlsx 為 Google Sheet 失敗' }), {
+    return new Response(JSON.stringify({ error: `轉換 xlsx 失敗：${tempSheet?.error?.message || JSON.stringify(tempSheet)}` }), {
       status: 500, headers: { ...headers, 'Content-Type': 'application/json' }
     });
   }
@@ -931,16 +931,42 @@ async function findScheduleXlsx(token, rocYear, month) {
 }
 
 // 將 Drive 檔案複製為 Google Sheet 格式
-async function copyFileAsGoogleSheet(token, fileId, name) {
-  const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}/copy?supportsAllDrives=true`,
+// 下載 xlsx 再以 multipart upload 轉為 Google Sheet（比 files.copy 更可靠）
+async function importXlsxAsGoogleSheet(token, fileId, name) {
+  // 下載 xlsx 原始 bytes
+  const dlRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!dlRes.ok) return { error: { message: `下載失敗 ${dlRes.status}` } };
+  const xlsxBytes = await dlRes.arrayBuffer();
+
+  // multipart upload：metadata + file，mimeType 設為 Google Sheet 觸發自動轉換
+  const boundary = '-------314159265358979323846';
+  const metadata = JSON.stringify({ name, mimeType: 'application/vnd.google-apps.spreadsheet' });
+  const xlsxMime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+  const encoder = new TextEncoder();
+  const parts = [
+    encoder.encode(`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n`),
+    encoder.encode(`--${boundary}\r\nContent-Type: ${xlsxMime}\r\n\r\n`),
+    new Uint8Array(xlsxBytes),
+    encoder.encode(`\r\n--${boundary}--`),
+  ];
+  const total = parts.reduce((s, p) => s + p.byteLength, 0);
+  const body = new Uint8Array(total);
+  let offset = 0;
+  for (const p of parts) { body.set(p, offset); offset += p.byteLength; }
+
+  const upRes = await fetch(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true',
     {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mimeType: 'application/vnd.google-apps.spreadsheet', name }),
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': `multipart/related; boundary="${boundary}"` },
+      body,
     }
   );
-  return await res.json(); // { id, name, ... }
+  return await upRes.json(); // { id, name, ... } 或 { error: ... }
 }
 
 // 讀取 Google Sheet 所有欄位值
