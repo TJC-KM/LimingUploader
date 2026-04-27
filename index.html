@@ -150,6 +150,8 @@
   /* LINE 發布按鈕 */
   .btn-action-line { color: #00B900 !important; border-color: #b3e6b3 !important; }
   .btn-action-line:hover { background: #f0fff0 !important; border-color: #00B900 !important; }
+  .btn-action-convert { color: #6F4E37 !important; border-color: #c4a882 !important; }
+  .btn-action-convert:hover { background: #fdf6f0 !important; border-color: #6F4E37 !important; }
   .img-line-btn { position: absolute; bottom: 28px; right: 5px; font-size: 10px; padding: 2px 6px; border-radius: 5px; background: rgba(0,185,0,0.85); border: none; color: #fff; cursor: pointer; opacity: 0; transition: opacity 0.15s; font-weight: bold; }
   .img-card:hover .img-line-btn { opacity: 1; }
   .img-line-btn:hover { background: #009900; }
@@ -350,7 +352,7 @@
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
-  document.getElementById('version-footer').textContent = '最後發布時間：2026-04-27 01:58';
+  document.getElementById('version-footer').textContent = '最後發布時間：2026-04-27 14:53';
 
   let CATEGORIES = []; // 從 Google Sheet 動態載入
 
@@ -736,6 +738,9 @@
         const summarizeBtn = isLoggedIn && f.mimeType && f.mimeType.startsWith('audio/')
           ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>`
           : '';
+        const convertBtn = showLine && /^(\d{4}-\d{2}|\d{6})/.test(f.name) && f.name.includes('安排表')
+          ? `<button class="btn-action btn-action-convert" onclick="convertSchedule('${f.id}','${safeName}')">轉檔</button>`
+          : '';
         return `
           <div class="file-row">
             <div class="file-type-icon">${getFileIcon(f.mimeType)}</div>
@@ -747,7 +752,7 @@
             <div class="file-actions">
               <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a>
               <a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>
-              ${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}
+              ${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}${convertBtn}
             </div>
           </div>
         `;
@@ -802,6 +807,9 @@
         const summarizeBtn = isLoggedIn && f.mimeType && f.mimeType.startsWith('audio/')
           ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>`
           : '';
+        const convertBtn = showLine && /^(\d{4}-\d{2}|\d{6})/.test(f.name) && f.name.includes('安排表')
+          ? `<button class="btn-action btn-action-convert" onclick="convertSchedule('${f.id}','${safeName}')">轉檔</button>`
+          : '';
         return `
           <div class="file-row">
             <div class="file-type-icon">${getFileIcon(f.mimeType)}</div>
@@ -813,7 +821,7 @@
             <div class="file-actions">
               <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a>
               <a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>
-              ${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}
+              ${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}${convertBtn}
             </div>
           </div>
         `;
@@ -1279,6 +1287,11 @@ async function uploadFile(file) {
 
   function closeSummarizeModal() {
     document.getElementById('summarize-modal').classList.remove('show');
+  }
+
+  function convertSchedule(fileId, fileName) {
+    // TODO: 實作轉檔邏輯
+    alert(`轉檔：${fileName}`);
   }
 
   function toggleViewMode() {
