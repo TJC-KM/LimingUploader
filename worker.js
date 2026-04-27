@@ -914,21 +914,17 @@ async function convertSchedule(token, env, fileName, headers) {
 
   // 9. 從 Users 頁籤取得 userId 對照表，寫入 LINE 排程
   const usersMap = await getUsersMap(token);
-  const lineCount = await writeConvertLineSchedule(token, scheduleRows, usersMap);
+  const { written: lineWritten, unmatched: lineUnmatched } = await writeConvertLineSchedule(token, scheduleRows, usersMap);
 
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${yearSheetId}/edit#gid=0`;
-  const uniquePersons = [...new Set(scheduleRows.map(r => r.person).filter(Boolean))];
   return new Response(JSON.stringify({
     success: true,
     sheetId: yearSheetId,
     sheetUrl,
     tabName,
     rowCount: scheduleRows.length,
-    lineCount,
-    debug: {
-      usersMapKeys: Object.keys(usersMap),
-      schedulePersons: uniquePersons,
-    },
+    lineWritten,
+    lineUnmatched,
   }), { headers: { ...headers, 'Content-Type': 'application/json' } });
 }
 
@@ -1158,18 +1154,20 @@ function findUserId(usersMap, personName) {
   return null;
 }
 
-// 寫入 LINE 排程 Sheet（一人一筆）
+// 寫入 LINE 排程 Sheet（一人一筆），回傳 { written, unmatched }
 async function writeConvertLineSchedule(token, scheduleRows, usersMap) {
-  const rows = scheduleRows
-    .filter(r => r.person && r.date && findUserId(usersMap, r.person))
-    .map(r => {
-      const userId   = findUserId(usersMap, r.person);
-      const sendTime = calcSendTime(r.date);
-      const content  = `${r.date}有被安排${r.job}工作，要記得`;
-      return [sendTime, userId, 'text', content, '', '', 'pending'];
-    });
+  const withPerson = scheduleRows.filter(r => r.person && r.date);
+  const matched   = withPerson.filter(r => findUserId(usersMap, r.person));
+  const unmatched = withPerson.length - matched.length;
 
-  if (rows.length === 0) return 0;
+  const rows = matched.map(r => {
+    const userId   = findUserId(usersMap, r.person);
+    const sendTime = calcSendTime(r.date);
+    const content  = `${r.date}有被安排${r.job}工作，要記得`;
+    return [sendTime, userId, 'text', content, '', '', 'pending'];
+  });
+
+  if (rows.length === 0) return { written: 0, unmatched };
 
   const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_HELPER_SHEET_ID}/values/Schedule!A:G:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
@@ -1183,5 +1181,5 @@ async function writeConvertLineSchedule(token, scheduleRows, usersMap) {
     const err = await res.json();
     throw new Error(`LINE 排程寫入失敗：${err.error?.message || res.status}`);
   }
-  return rows.length;
+  return { written: rows.length, unmatched };
 }
