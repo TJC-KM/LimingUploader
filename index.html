@@ -377,7 +377,7 @@
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
-  document.getElementById('version-footer').textContent = '最後發布時間：2026-04-27 22:30';
+  document.getElementById('version-footer').textContent = '最後發布時間：2026-04-27 23:10';
 
   let CATEGORIES = []; // 從 Google Sheet 動態載入
 
@@ -397,9 +397,10 @@
   let viewMode = 'grid'; // 'grid' 或 'list'
   let _lineUsers = [];   // 發送對象快取
   let _currentImages = []; // 目前資料夾圖片快取（供 LINE 彈窗使用）
+  let _uploadCount = 0;   // 進行中的上傳數量（beforeunload 用）
 
   // 頁面載入：顯示類別選擇畫面
-  window.onload = () => loadCategories();
+  window.onload = () => { history.replaceState({ view: 'home' }, ''); loadCategories(); };
 
   // ── 登入 / 登出 ──────────────────────────
 
@@ -549,6 +550,7 @@
     } else {
       showLoginHint();
     }
+    history.pushState({ view: 'category', id, name }, '');
   }
 
   function goHome() {
@@ -560,6 +562,7 @@
     document.getElementById('folder-view').style.display = 'none';
     document.getElementById('category-view').style.display = 'block';
     document.getElementById('sheet-btn').style.display = 'none';
+    history.pushState({ view: 'home' }, '');
   }
 
   function goToStackLevel(index) {
@@ -592,6 +595,11 @@
         showLoginHint();
       }
       loadFiles(currentCategoryId);
+    }
+    if (index < 0) {
+      history.pushState({ view: 'category', id: currentCategoryId, name: currentCategoryName }, '');
+    } else {
+      history.pushState({ view: 'folder', stack: [...folderStack], categoryId: currentCategoryId, categoryName: currentCategoryName }, '');
     }
   }
 
@@ -665,6 +673,7 @@
     folderStack.push({ id, name });
     currentFolderId = id;
     currentFolderName = name;
+    history.pushState({ view: 'folder', stack: [...folderStack], categoryId: currentCategoryId, categoryName: currentCategoryName }, '');
     document.getElementById('current-folder-badge').textContent = name;
     renderBreadcrumb();
     loadFolders();
@@ -900,6 +909,7 @@
   }
 
 async function uploadFile(file) {
+  _uploadCount++;
   const itemId = 'upload-' + Date.now() + Math.random();
   const list = document.getElementById('upload-list');
   const item = document.createElement('div');
@@ -942,6 +952,8 @@ async function uploadFile(file) {
   } catch (err) {
     document.getElementById(`${itemId}-status`).textContent = '上傳失敗';
     document.getElementById(`${itemId}-status`).className = 'upload-item-status error';
+  } finally {
+    _uploadCount--;
   }
 }
 
@@ -964,6 +976,76 @@ async function uploadFile(file) {
       if (document.getElementById('delete-modal').classList.contains('show')) closeDeleteModal();
       if (document.getElementById('line-modal').classList.contains('show')) closeLineModal();
     }
+  });
+
+  // ── 瀏覽器上一頁 / 防止上傳中離頁 ──────────
+  window.addEventListener('popstate', e => {
+    const state = e.state;
+    if (!state || state.view === 'home') {
+      currentCategoryId = null;
+      currentCategoryName = '';
+      currentFolderId = null;
+      currentFolderName = '';
+      folderStack = [];
+      document.getElementById('folder-view').style.display = 'none';
+      document.getElementById('category-view').style.display = 'block';
+      document.getElementById('sheet-btn').style.display = 'none';
+      updateDriveBtn();
+    } else if (state.view === 'category') {
+      currentCategoryId = state.id;
+      currentCategoryName = state.name;
+      currentFolderId = null;
+      currentFolderName = '';
+      folderStack = [];
+      const cat = CATEGORIES.find(c => c.id === state.id);
+      sortAsc = (cat?.sort !== 'desc');
+      updateSortBtn();
+      document.getElementById('category-view').style.display = 'none';
+      document.getElementById('folder-view').style.display = 'block';
+      document.getElementById('current-folder-badge').textContent = state.name;
+      document.getElementById('upload-list').innerHTML = '';
+      viewMode = 'grid';
+      updateViewToggleBtn();
+      renderBreadcrumb();
+      updateDriveBtn();
+      loadFolders();
+      loadFiles(state.id);
+      document.getElementById('sheet-btn').style.display = cat?.linePublish ? '' : 'none';
+      const noUpload1 = cat?.noUpload;
+      if (noUpload1) {
+        document.getElementById('upload-area').innerHTML = '';
+      } else if (isLoggedIn) {
+        showUploadZone();
+      } else {
+        showLoginHint();
+      }
+    } else if (state.view === 'folder') {
+      currentCategoryId = state.categoryId;
+      currentCategoryName = state.categoryName;
+      folderStack = state.stack;
+      currentFolderId = state.stack[state.stack.length - 1].id;
+      currentFolderName = state.stack[state.stack.length - 1].name;
+      document.getElementById('current-folder-badge').textContent = currentFolderName;
+      document.getElementById('upload-list').innerHTML = '';
+      renderBreadcrumb();
+      updateDriveBtn();
+      loadFolders();
+      loadFiles(currentFolderId);
+      const cat2 = CATEGORIES.find(c => c.id === currentCategoryId);
+      document.getElementById('sheet-btn').style.display = cat2?.linePublish ? '' : 'none';
+      const noUpload2 = cat2?.noUpload;
+      if (noUpload2) {
+        document.getElementById('upload-area').innerHTML = '';
+      } else if (isLoggedIn) {
+        showUploadZone();
+      } else {
+        showLoginHint();
+      }
+    }
+  });
+
+  window.addEventListener('beforeunload', e => {
+    if (_uploadCount > 0) e.preventDefault();
   });
 
   // ── 重新命名 ──────────────────────────────
