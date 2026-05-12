@@ -1,1 +1,1538 @@
-PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9InpoLVRXIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9IlVURi04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCwgaW5pdGlhbC1zY2FsZT0xLjAiPgo8bGluayByZWw9Imljb24iIHR5cGU9ImltYWdlL3BuZyIgaHJlZj0ibG9nb18xMHRoLnBuZyI+Cjx0aXRsZT7pu47mmI7lr7bluqs8L3RpdGxlPgo8c3R5bGU+CiAgKiB7IGJveC1zaXppbmc6IGJvcmRlci1ib3g7IG1hcmdpbjogMDsgcGFkZGluZzogMDsgfQogIGJvZHkgeyBmb250LWZhbWlseTogLWFwcGxlLXN5c3RlbSwgQmxpbmtNYWNTeXN0ZW1Gb250LCBzYW5zLXNlcmlmOyBiYWNrZ3JvdW5kOiAjZjVmNWY1OyBtaW4taGVpZ2h0OiAxMDB2aDsgfQogIC5jb250YWluZXIgeyBtYXgtd2lkdGg6IDcyMHB4OyBtYXJnaW46IDAgYXV0bzsgcGFkZGluZzogMTZweDsgfQoKICAvKiDpoILpg6jlsI7opr3liJcgKi8KICAudG9wLWJhciB7IGJhY2tncm91bmQ6ICNmZmY7IGJvcmRlci1yYWRpdXM6IDEycHg7IHBhZGRpbmc6IDE0cHggMTZweDsgbWFyZ2luLWJvdHRvbTogMTZweDsgZGlzcGxheTogZmxleDsgYWxpZ24taXRlbXM6IGNlbnRlcjsganVzdGlmeS1jb250ZW50OiBzcGFjZS1iZXR3ZWVuOyBib3JkZXI6IDFweCBzb2xpZCAjZWVlOyB9CiAgLnRvcC1iYXIgaDEgeyBmb250LXNpemU6IDE2cHg7IGZvbnQtd2VpZ2h0OiA2MDA7IH0KICAudG9wLWJhci1yaWdodCB7IGRpc3BsYXk6IGZsZXg7IGFsaWduLWl0ZW1zOiBjZW50ZXI7IGdhcDogMTBweDsgfQogIC5zdGF0dXMtYmFkZ2UgeyBmb250LXNpemU6IDEycHg7IHBhZGRpbmc6IDRweCAxMHB4OyBib3JkZXItcmFkaXVzOiA5OXB4OyBiYWNrZ3JvdW5kOiAjZjVmNWY1OyBjb2xvcjogIzg4ODsgfQogIC5zdGF0dXMtYmFkZ2UubG9nZ2VkLWluIHsgYmFja2dyb3VuZDogI2YwZmFmMDsgY29sb3I6ICMzQjZEMTE7IH0KICAuc3RhdHVzLWJhZGdlLmVycm9yIHsgYmFja2dyb3VuZDogI2ZmZjBmMDsgY29sb3I6ICNlMjRiNGE7IH0KCiAgLyog5oyJ6YiVICovCiAgLmJ0bi1wcmltYXJ5IHsgcGFkZGluZzogOHB4IDE2cHg7IGJhY2tncm91bmQ6ICMzNzhBREQ7IGNvbG9yOiAjZmZmOyBib3JkZXI6IG5vbmU7IGJvcmRlci1yYWRpdXM6IDhweDsgZm9udC1zaXplOiAxM3B4OyBmb250LXdlaWdodDogNTAwOyBjdXJzb3I6IHBvaW50ZXI7IH0KICAuYnRuLXByaW1hcnk6aG92ZXIgeyBiYWNrZ3JvdW5kOiAjMmQ3MmMwOyB9CiAgLmJ0bi1zZWNvbmRhcnkgeyBwYWRkaW5nOiA4cHggMTZweDsgYmFja2dyb3VuZDogI2Y1ZjVmNTsgY29sb3I6ICMzMzM7IGJvcmRlcjogMXB4IHNvbGlkICNkZGQ7IGJvcmRlci1yYWRpdXM6IDhweDsgZm9udC1zaXplOiAxM3B4OyBjdXJzb3I6IHBvaW50ZXI7IH0KICAuYnRuLXNlY29uZGFyeTpob3ZlciB7IGJhY2tncm91bmQ6ICNlZWU7IH0KICAuYnRuLWdob3N0IHsgcGFkZGluZzogOHB4IDE2cHg7IGJhY2tncm91bmQ6IG5vbmU7IGNvbG9yOiAjODg4OyBib3JkZXI6IDFweCBzb2xpZCAjZGRkOyBib3JkZXItcmFkaXVzOiA4cHg7IGZvbnQtc2l6ZTogMTNweDsgY3Vyc29yOiBwb2ludGVyOyB9CiAgLmJ0bi1naG9zdDpob3ZlciB7IGNvbG9yOiAjZTI0YjRhOyBib3JkZXItY29sb3I6ICNlMjRiNGE7IH0KCiAgLyog5byC56ewICovCiAgLm1vZGFsLW92ZXJsYXkgeyBkaXNwbGF5OiBub25lOyBwb3NpdGlvbjogZml4ZWQ7IGluc2V0OiAwOyBiYWNrZ3JvdW5kOiByZ2JhKDAsMCwwLDAuNCk7IHotaW5kZXg6IDEwMDsgYWxpZ24taXRlbXM6IGNlbnRlcjsganVzdGlmeS1jb250ZW50OiBjZW50ZXI7IHBhZGRpbmc6IDE2cHg7IH0KICAubW9kYWwtb3ZlcmxheS5zaG93IHsgZGlzcGxheTogZmxleDsgfQogIC5tb2RhbCB7IGJhY2tncm91bmQ6ICNmZmY7IGJvcmRlci1yYWRpdXM6IDE2cHg7IHBhZGRpbmc6IDI0cHg7IHdpZHRoOiAxMDAlOyBtYXgtd2lkdGg6IDM0MHB4OyB9CiAgLm1vZGFsIGgzIHsgZm9udC1zaXplOiAxNnB4OyBmb250LXdlaWdodDogNjAwOyBtYXJnaW4tYm90dG9tOiA2cHg7IH0KICAubW9kYWwgcCB7IGZvbnQtc2l6ZTogMTNweDsgY29sb3I6ICM4ODg7IG1hcmdpbi1ib3R0b206IDE2cHg7IH0KICAubW9kYWwgaW5wdXQgeyB3aWR0aDogMTAwJTsgcGFkZGluZzogMTBweCAxNHB4OyBib3JkZXI6IDFweCBzb2xpZCAjZGRkOyBib3JkZXItcmFkaXVzOiAxMHB4OyBmb250LXNpemU6IDE0cHg7IG1hcmdpbi1ib3R0b206IDEwcHg7IG91dGxpbmU6IG5vbmU7IHRyYW5zaXRpb246IGJvcmRlci1jb2xvciAwLjE1czsgfQogIC5tb2RhbCBpbnB1dDpmb2N1cyB7IGJvcmRlci1jb2xvcjogIzM3OEFERDsgfQogIC5tb2RhbC1idG5zIHsgZGlzcGxheTogZmxleDsgZ2FwOiA4cHg7IH0KICAubW9kYWwtYnRucyBidXR0b24geyBmbGV4OiAxOyBwYWRkaW5nOiAxMHB4OyBib3JkZXItcmFkaXVzOiAxMHB4OyBmb250LXNpemU6IDE0cHg7IGN1cnNvcjogcG9pbnRlcjsgfQogIC5lcnJvci1tc2cgeyBjb2xvcjogI2UyNGI0YTsgZm9udC1zaXplOiAxMnB4OyBtYXJnaW4tYm90dG9tOiAxMHB4OyBtaW4taGVpZ2h0OiAxNnB4OyB9CiAgLnN1Y2Nlc3MtbXNnIHsgY29sb3I6ICMzQjZEMTE7IGZvbnQtc2l6ZTogMTJweDsgbWFyZ2luLWJvdHRvbTogMTBweDsgbWluLWhlaWdodDogMTZweDsgfQoKICAvKiDos4fml7bkpJcgKi8KICAuc2VjdGlvbi10aXRsZSB7IGZvbnQtc2l6ZTogMTNweDsgY29sb3I6ICM4ODg7IG1hcmdpbi1ib3R0b206IDEwcHg7IH0KICAuZm9sZGVyLWdyaWQgeyBkaXNwbGF5OiBncmlkOyBncmlkLXRlbXBsYXRlLWNvbHVtbnM6IHJlcGVhdChhdXRvLWZpbGwsIG1pbm1heCgxNDBweCwgMWZyKSk7IGdhcDogMTBweDsgbWFyZ2luLWJvdHRvbTogMTZweDsgfQogIEBtZWRpYSAobWF4LXdpZHRoOiA0ODBweCkgeyAuZm9sZGVyLWdyaWQgeyBncmlkLXRlbXBsYXRlLWNvbHVtbnM6IHJlcGVhdCgyLCAxZnIpOyB9IH0KICAuZm9sZGVyLWNhcmQgeyBiYWNrZ3JvdW5kOiAjZmZmOyBib3JkZXI6IDFweCBzb2xpZCAjZWVlOyBib3JkZXItcmFkaXVzOiAxMnB4OyBwYWRkaW5nOiAxMnB4IDE0cHg7IGN1cnNvcjogcG9pbnRlcjsgdHJhbnNpdGlvbjogYm9yZGVyLWNvbG9yIDAuMTVzLCBib3gtc2hhZG93IDAuMTVzOyB9CiAgLmZvbGRlci1jYXJkOmhvdmVyIHsgYm9yZGVyLWNvbG9yOiAjMzc4QUREOyBib3gtc2hhZG93OiAwIDJweCA4cHggcmdiYSg1NSwxMzgsMjIxLDAuMSk7IH0KICAuZm9sZGVyLWNhcmQuYWN0aXZlIHsgYm9yZGVyOiAycHggc29saWQgIzM3OEFERDsgYmFja2dyb3VuZDogI2YwZjdmZjsgfQogIC5mb2xkZXItY2FyZCAuaWNvbiB7IGZvbnQtc2l6ZTogMjJweDsgbWFyZ2luLWJvdHRvbTogNnB4OyB9CiAgLmZvbGRlci1jYXJkIC5uYW1lIHsgZm9udC1zaXplOiAxM3B4OyBmb250LXdlaWdodDogNTAwOyB3b3JkLWJyZWFrOiBicmVhay13b3JkOyBsaW5lLWhlaWdodDogMS4zOyB9CiAgLmFkZC1mb2xkZXItY2FyZCB7IGJhY2tncm91bmQ6ICNmYWZhZmE7IGJvcmRlcjogMXB4IGRhc2hlZCAjY2NjOyBib3JkZXItcmFkaXVzOiAxMnB4OyBwYWRkaW5nOiAxMnB4IDE0cHg7IGN1cnNvcjogcG9pbnRlcjsgZGlzcGxheTogZmxleDsgZmxleC1kaXJlY3Rpb246IGNvbHVtbjsgYWxpZ24taXRlbXM6IGNlbnRlcjsganVzdGlmeS1jb250ZW50OiBjZW50ZXI7IGdhcDogNHB4OyB0cmFuc2l0aW9uOiBib3JkZXItY29sb3IgMC4xNXM7IH0KICAuYWRkLWZvbGRlci1jYXJkOmhvdmVyIHsgYm9yZGVyLWNvbG9yOiAjMzc4QUREOyB9CiAgLmFkZC1mb2xkZXItY2FyZCAucGx1cyB7IGZvbnQtc2l6ZTogMjJweDsgY29sb3I6ICNhYWE7IH0KICAuYWRkLWZvbGRlci1jYXJkIC5sYWJlbCB7IGZvbnQtc2l6ZTogMTNweDsgY29sb3I6ICM4ODg7IH0KCiAgLyog5qWt5qGI5YiX6KGMICovCiAgLmZpbGUtc2VjdGlvbiB7IGJhY2tncm91bmQ6ICNmZmY7IGJvcmRlci1yYWRpdXM6IDEycHg7IGJvcmRlcjogMXB4IHNvbGlkICNlZWU7IG92ZXJmbG93OiBoaWRkZW47IG1hcmdpbi1ib3R0b206IDE2cHg7IH0KICAuZmlsZS1zZWN0aW9uLWhlYWRlciB7IHBhZGRpbmc6IDEycHggMTZweDsgYm9yZGVyLWJvdHRvbTogMXB4IHNvbGlkICNlZWU7IGRpc3BsYXk6IGZsZXg7IGFsaWduLWl0ZW1zOiBjZW50ZXI7IGdhcDogOHB4OyB9CiAgLmZpbGUtc2VjdGlvbi1oZWFkZXIgc3BhbiB7IGZvbnQtc2l6ZTogMTNweDsgY29sb3I6ICM4ODg7IH0KICAuYmFkZ2UgeyBmb250LXNpemU6IDExcHg7IHBhZGRpbmc6IDJweCA4cHg7IGJvcmRlci1yYWRpdXM6IDk5cHg7IGJhY2tncm91bmQ6ICNlOGYwZmU7IGNvbG9yOiAjMTg1RkE1OyBmb250LXdlaWdodDogNTAwOyB9CiAgLmZpbGUtcm93IHsgZGlzcGxheTogZmxleDsgYWxpZ24taXRlbXM6IGZsZXgtc3RhcnQ7IGdhcDogMTBweDsgcGFkZGluZzogMTBweCAxNnB4OyBib3JkZXItYm90dG9tOiAxcHggc29saWQgI2Y1ZjVmNTsgfQogIC5maWxlLXJvdzpsYXN0LWNoaWxkIHsgYm9yZGVyLWJvdHRvbTogbm9uZTsgfQogIC5maWxlLXR5cGUtaWNvbiB7IGZvbnQtc2l6ZTogMThweDsgZmxleC1zaHJpbms6IDA7IHBhZGRpbmctdG9wOiAzcHg7IH0KICAuZmlsZS1pbmZvIHsgZmxleDogMTsgbWluLXdpZHRoOiAwOyB9CiAgLmZpbGUtbmFtZSB7IGZvbnQtc2l6ZTogMTNweDsgZm9udC13ZWlnaHQ6IDUwMDsgd2hpdGUtc3BhY2U6IG5vd3JhcDsgb3ZlcmZsb3c6IGhpZGRlbjsgdGV4dC1vdmVyZmxvdzogZWxsaXBzaXM7IH0KICAjZmlsZS1saXN0Lmxpc3QtbW9kZSAuZmlsZS1uYW1lLCAjZmlsZS1saXN0Om5vdCgubGlzdC1tb2RlKSAuZmlsZS1uYW1lIHsgd2hpdGUtc3BhY2U6IG5vcm1hbDsgb3ZlcmZsb3c6IHZpc2libGU7IHRleHQtb3ZlcmZsb3c6IHVuc2V0OyB9CiAgLmZpbGUtbWV0YSB7IGZvbnQtc2l6ZTogMTFweDsgY29sb3I6ICM4ODg7IG1hcmdpbi10b3A6IDJweDsgfQogIC5maWxlLWRhdGUgeyBmb250LXNpemU6IDExcHg7IGNvbG9yOiAjYWFhOyBmbGV4LXNocmluazogMDsgfQogIC5lbXB0eS1maWxlcyB7IHBhZGRpbmc6IDI0cHg7IHRleHQtYWxpZ246IGNlbnRlcjsgY29sb3I6ICNhYWE7IGZvbnQtc2l6ZTogMTNweDsgfQoKICAvKiDkuIrkvqHljLkgKi8KICAudXBsb2FkLXNlY3Rpb24geyBiYWNrZ3JvdW5kOiAjZmZmOyBib3JkZXItcmFkaXVzOiAxMnB4OyBib3JkZXI6IDFweCBzb2xpZCAjZWVlOyBwYWRkaW5nOiAyMHB4OyB9CiAgLnVwbG9hZC16b25lIHsgYm9yZGVyOiAycHggZGFzaGVkICNkZGQ7IGJvcmRlci1yYWRpdXM6IDEycHg7IHBhZGRpbmc6IDI4cHggMjBweDsgdGV4dC1hbGlnbjogY2VudGVyOyBjdXJzb3I6IHBvaW50ZXI7IHRyYW5zaXRpb246IGJvcmRlci1jb2xvciAwLjE1cywgYmFja2dyb3VuZCAwLjE1czsgfQogIC51cGxvYWQtem9uZTpob3Zlciwg
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="logo_10th.png">
+<title>黎明寶庫</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; min-height: 100vh; }
+  .container { max-width: 720px; margin: 0 auto; padding: 16px; }
+
+  /* 頂部導覽列 */
+  .top-bar { background: #fff; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #eee; }
+  .top-bar h1 { font-size: 16px; font-weight: 600; }
+  .top-bar-right { display: flex; align-items: center; gap: 10px; }
+  .status-badge { font-size: 12px; padding: 4px 10px; border-radius: 99px; background: #f5f5f5; color: #888; }
+  .status-badge.logged-in { background: #f0faf0; color: #3B6D11; }
+  .status-badge.error { background: #fff0f0; color: #e24b4a; }
+
+  /* 按鈕 */
+  .btn-primary { padding: 8px 16px; background: #378ADD; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-primary:hover { background: #2d72c0; }
+  .btn-secondary { padding: 8px 16px; background: #f5f5f5; color: #333; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; cursor: pointer; }
+  .btn-secondary:hover { background: #eee; }
+  .btn-ghost { padding: 8px 16px; background: none; color: #888; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; cursor: pointer; }
+  .btn-ghost:hover { color: #e24b4a; border-color: #e24b4a; }
+
+  /* 彈窗 */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: #fff; border-radius: 16px; padding: 24px; width: 100%; max-width: 340px; }
+  .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .modal p { font-size: 13px; color: #888; margin-bottom: 16px; }
+  .modal input { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; margin-bottom: 10px; outline: none; transition: border-color 0.15s; }
+  .modal input:focus { border-color: #378ADD; }
+  .modal-btns { display: flex; gap: 8px; }
+  .modal-btns button { flex: 1; padding: 10px; border-radius: 10px; font-size: 14px; cursor: pointer; }
+  .error-msg { color: #e24b4a; font-size: 12px; margin-bottom: 10px; min-height: 16px; }
+  .success-msg { color: #3B6D11; font-size: 12px; margin-bottom: 10px; min-height: 16px; }
+
+  /* 資料夾 */
+  .section-title { font-size: 13px; color: #888; margin-bottom: 10px; }
+  .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  @media (max-width: 480px) { .folder-grid { grid-template-columns: repeat(2, 1fr); } }
+  .folder-card { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 12px 14px; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+  .folder-card:hover { border-color: #378ADD; box-shadow: 0 2px 8px rgba(55,138,221,0.1); }
+  .folder-card.active { border: 2px solid #378ADD; background: #f0f7ff; }
+  .folder-card .icon { font-size: 22px; margin-bottom: 6px; }
+  .folder-card .name { font-size: 13px; font-weight: 500; word-break: break-word; line-height: 1.3; }
+  .add-folder-card { background: #fafafa; border: 1px dashed #ccc; border-radius: 12px; padding: 12px 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: border-color 0.15s; }
+  .add-folder-card:hover { border-color: #378ADD; }
+  .add-folder-card .plus { font-size: 22px; color: #aaa; }
+  .add-folder-card .label { font-size: 13px; color: #888; }
+
+  /* 檔案列表 */
+  .file-section { background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden; margin-bottom: 16px; }
+  .file-section-header { padding: 12px 16px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px; }
+  .file-section-header span { font-size: 13px; color: #888; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: #e8f0fe; color: #185FA5; font-weight: 500; }
+  .file-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 16px; border-bottom: 1px solid #f5f5f5; }
+  .file-row:last-child { border-bottom: none; }
+  .file-type-icon { font-size: 18px; flex-shrink: 0; padding-top: 3px; }
+  .file-info { flex: 1; min-width: 0; }
+  .file-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #file-list.list-mode .file-name, #file-list:not(.list-mode) .file-name { white-space: normal; overflow: visible; text-overflow: unset; }
+  .file-meta { font-size: 11px; color: #888; margin-top: 2px; }
+  .file-date { font-size: 11px; color: #aaa; flex-shrink: 0; }
+  .empty-files { padding: 24px; text-align: center; color: #aaa; font-size: 13px; }
+
+  /* 上傳區 */
+  .upload-section { background: #fff; border-radius: 12px; border: 1px solid #eee; padding: 20px; }
+  .upload-zone { border: 2px dashed #ddd; border-radius: 12px; padding: 28px 20px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+  .upload-zone:hover, .upload-zone.dragover { border-color: #378ADD; background: #f0f7ff; }
+  .upload-zone .upload-icon { font-size: 32px; margin-bottom: 10px; }
+  .upload-zone .upload-text { font-size: 14px; color: #444; margin-bottom: 4px; }
+  .upload-zone .upload-hint { font-size: 12px; color: #aaa; }
+  .upload-btn-label { display: inline-block; margin-top: 12px; padding: 8px 20px; background: #378ADD; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .login-hint { text-align: center; padding: 20px; background: #fffbe6; border-radius: 10px; border: 1px solid #ffe58f; }
+  .login-hint p { font-size: 13px; color: #876800; margin-bottom: 12px; }
+
+  /* 進度條 */
+  .upload-list { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .upload-item { background: #f9f9f9; border-radius: 10px; padding: 10px 14px; }
+  .upload-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .upload-item-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%; }
+  .upload-item-status { font-size: 11px; color: #888; flex-shrink: 0; }
+  .upload-item-status.done { color: #3B6D11; }
+  .upload-item-status.error { color: #e24b4a; }
+  .progress-bar { height: 4px; background: #e8e8e8; border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: #378ADD; border-radius: 2px; transition: width 0.3s; }
+  .progress-fill.done { background: #639922; }
+
+  /* 下載樣式 */
+  .file-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; max-width: 50%; justify-content: flex-end; }
+  .btn-action { font-size: 11px; padding: 4px 10px; border-radius: 6px; border: 1px solid #ddd; color: #378ADD; text-decoration: none; white-space: nowrap; background: none; cursor: pointer; }
+  .btn-action:hover { background: #f0f7ff; border-color: #378ADD; }
+  @media (max-width: 480px) { .file-date { display: none; } }
+
+  /* 麵包屑導覽 */
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; margin-bottom: 12px; }
+  .breadcrumb-home { color: #378ADD; cursor: pointer; }
+  .breadcrumb-home:hover { text-decoration: underline; }
+  .breadcrumb-sep { color: #bbb; }
+  .breadcrumb-current { color: #333; font-weight: 500; }
+
+  /* 圖片縮圖格 */
+  .img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; padding: 12px 16px; }
+  @media (max-width: 480px) { .img-grid { grid-template-columns: repeat(3, 1fr); } }
+  .img-card { border-radius: 8px; overflow: hidden; border: 1px solid #eee; transition: box-shadow 0.15s; text-decoration: none; display: block; position: relative; }
+  .img-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.12); border-color: #bbb; }
+  .img-thumb { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: #f0f0f0; }
+  .img-delete-btn { position: absolute; top: 5px; right: 5px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,0.5); border: none; color: #fff; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; }
+  .img-card:hover .img-delete-btn { opacity: 1; }
+  .img-delete-btn:hover { background: #e24b4a; }
+  @media (hover: none) { .img-delete-btn { opacity: 0.7; } }
+  .img-play-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+  .img-play-overlay::after { content: '▶'; font-size: 28px; color: rgba(255,255,255,0.9); text-shadow: 0 1px 6px rgba(0,0,0,0.5); }
+  .img-name { font-size: 11px; color: #555; padding: 4px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .img-section-label { font-size: 12px; color: #aaa; padding: 10px 16px 2px; }
+  .img-section-divider { border: none; border-top: 1px solid #f0f0f0; margin: 4px 0; }
+
+  /* 刪除按鈕 */
+  .btn-danger { padding: 10px; border-radius: 10px; font-size: 14px; cursor: pointer; background: #e24b4a; color: #fff; border: none; flex: 1; }
+  .btn-danger:hover { background: #c43a39; }
+  .btn-action-delete { color: #e24b4a !important; }
+  .btn-action-delete:hover { background: #fff0f0 !important; border-color: #e24b4a !important; }
+  .folder-delete-btn { position: absolute; top: 6px; left: 6px; font-size: 11px; padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.95); border: 1px solid #ddd; color: #e24b4a; cursor: pointer; opacity: 0; transition: opacity 0.15s; line-height: 1.6; }
+  .folder-card:hover .folder-delete-btn { opacity: 1; }
+  .folder-delete-btn:hover { border-color: #e24b4a; background: #fff0f0; }
+  @media (hover: none) { .folder-delete-btn, .folder-rename-btn { opacity: 0.7; } }
+
+  /* 開啟雲端硬碟圖示按鈕 */
+  .btn-drive { font-size: 14px; padding: 3px 7px; border-radius: 6px; border: 1px solid #ddd; background: #fff; cursor: pointer; margin-left: 6px; line-height: 1.6; }
+  .btn-drive:hover { border-color: #378ADD; }
+
+  /* 排序按鈕 */
+  .sort-btn { font-size: 12px; padding: 3px 10px; border-radius: 6px; border: 1px solid #ddd; background: #fff; color: #555; cursor: pointer; margin-left: auto; flex-shrink: 0; }
+  .sort-btn:hover { border-color: #378ADD; color: #378ADD; }
+  .section-title { display: flex; align-items: center; }
+
+  /* 檢視切換按鈕 */
+  .btn-view-toggle { font-size: 12px; padding: 3px 10px; border-radius: 6px; border: 1px solid #ddd; background: #fff; color: #555; cursor: pointer; margin-left: auto; flex-shrink: 0; }
+  .btn-view-toggle:hover { border-color: #378ADD; color: #378ADD; }
+
+  /* 資料夾改名按鈕 */
+  .folder-card { position: relative; }
+  .folder-rename-btn { position: absolute; top: 6px; right: 6px; font-size: 11px; padding: 2px 7px; border-radius: 6px; background: rgba(255,255,255,0.95); border: 1px solid #ddd; color: #888; cursor: pointer; opacity: 0; transition: opacity 0.15s; line-height: 1.6; }
+  .folder-card:hover .folder-rename-btn { opacity: 1; }
+  .folder-rename-btn:hover { color: #378ADD; border-color: #378ADD; }
+
+  /* LINE 發布按鈕 */
+  .btn-action-line { color: #00B900 !important; border-color: #b3e6b3 !important; }
+  .btn-action-line:hover { background: #f0fff0 !important; border-color: #00B900 !important; }
+  .btn-action-convert { color: #6F4E37 !important; border-color: #c4a882 !important; }
+  .btn-action-convert:hover { background: #fdf6f0 !important; border-color: #6F4E37 !important; }
+  .img-line-btn { position: absolute; bottom: 28px; right: 5px; font-size: 10px; padding: 2px 6px; border-radius: 5px; background: rgba(0,185,0,0.85); border: none; color: #fff; cursor: pointer; opacity: 0; transition: opacity 0.15s; font-weight: bold; }
+  .img-card:hover .img-line-btn { opacity: 1; }
+  .img-line-btn:hover { background: #009900; }
+
+  /* LINE 彈窗 */
+  .line-modal-body { max-height: 80vh; overflow-y: auto; padding-right: 2px; }
+  .line-section { display: none; margin-top: 8px; padding: 14px; background: #f9f9f9; border-radius: 8px; border-left: 4px solid #00B900; }
+  .line-section.show { display: block; }
+  .line-time-row { display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; }
+  .modal-label { font-size: 12px; font-weight: 600; color: #555; display: block; margin-top: 12px; margin-bottom: 4px; }
+  .modal select, .modal textarea { width: 100%; padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; margin-top: 0; outline: none; box-sizing: border-box; }
+  .modal select:focus, .modal textarea:focus { border-color: #00B900; }
+  .modal textarea { resize: vertical; min-height: 72px; font-family: inherit; }
+  .modal-hint { font-size: 11px; color: #888; margin-top: 4px; line-height: 1.4; }
+  .btn-line { padding: 10px; border-radius: 10px; font-size: 14px; cursor: pointer; background: #00B900; color: #fff; border: none; flex: 1; font-weight: 600; }
+  .btn-line:hover { background: #009900; }
+  .btn-line:disabled { background: #aaa; cursor: default; }
+
+  /* 版本資訊樣式 */
+  .version-footer { text-align: center; font-size: 10px; color: #ccc; margin-top: 30px; padding-bottom: 10px; }
+
+  /* 動態轉圈 */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #e0e0e0; border-top-color: #378ADD; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+
+  /* 上傳目標資料夾 */
+  .upload-target { font-size: 12px; color: #888; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<!-- 登入彈窗 -->
+<div class="modal-overlay" id="login-modal">
+  <div class="modal">
+    <h3>🔐 登入</h3>
+    <p>輸入密碼後可上傳檔案及新增資料夾</p>
+    <input type="password" id="login-password" placeholder="密碼提示：523..." />
+    <div class="error-msg" id="login-error"></div>
+    <div class="success-msg" id="login-success"></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeLoginModal()">取消</button>
+      <button class="btn-primary" id="login-confirm-btn" onclick="confirmLogin()">登入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增資料夾彈窗 -->
+<div class="modal-overlay" id="folder-modal">
+  <div class="modal">
+    <h3>新增資料夾</h3>
+    <p>在目前位置建立新資料夾</p>
+    <input type="text" id="folder-name-input" placeholder="資料夾名稱" />
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeFolderModal()">取消</button>
+      <button class="btn-primary" onclick="confirmCreateFolder()">建立</button>
+    </div>
+  </div>
+</div>
+
+<!-- 刪除確認彈窗 -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal">
+    <h3>🗑️ 移至刪除區</h3>
+    <p id="delete-modal-desc">確定要移除此項目嗎？</p>
+    <div class="error-msg" id="delete-error"></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeDeleteModal()">取消</button>
+      <button class="btn-danger" id="delete-confirm-btn" onclick="confirmDeleteItem()">確認移除</button>
+    </div>
+  </div>
+</div>
+
+<!-- LINE 排程彈窗 -->
+<div class="modal-overlay" id="line-modal">
+  <div class="modal">
+    <h3 style="color:#00B900; border-bottom:2px solid #00B900; padding-bottom:8px;">📣 LINE 排程發送</h3>
+    <p>設定內容後寫入排程試算表</p>
+    <div class="line-modal-body">
+      <label class="modal-label">發送對象</label>
+      <select id="line-target"></select>
+
+      <label class="modal-label">預約發送時間（30 分鐘一格）</label>
+      <div class="line-time-row">
+        <input type="date" id="line-date" style="padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;width:100%;margin:0;">
+        <select id="line-time"></select>
+      </div>
+
+      <label class="modal-label">訊息類型</label>
+      <select id="line-type" onchange="switchLineType()">
+        <option value="text">純文字訊息</option>
+        <option value="image">單張大圖 (Image)</option>
+        <option value="flex">教會卡片 (Flex)</option>
+      </select>
+
+      <div id="line-text-section" class="line-section show">
+        <label class="modal-label">文字內容</label>
+        <textarea id="line-text" rows="4" placeholder="請輸入訊息內容..."></textarea>
+      </div>
+
+      <div id="line-image-section" class="line-section">
+        <label class="modal-label">選擇圖片</label>
+        <select id="line-image-select"></select>
+        <div class="modal-hint">來源：目前資料夾的圖片</div>
+      </div>
+
+      <div id="line-flex-section" class="line-section">
+        <label class="modal-label">封面圖片</label>
+        <select id="line-flex-image"></select>
+        <label class="modal-label">訊息標題</label>
+        <input type="text" id="line-flex-title" placeholder="例如：線上聚會網址" style="padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;width:100%;box-sizing:border-box;margin-top:0;">
+        <label class="modal-label">訊息描述</label>
+        <textarea id="line-flex-desc" rows="2" placeholder="例如：歡迎各位弟兄姊妹..."></textarea>
+        <label class="modal-label">按鈕名稱</label>
+        <input type="text" id="line-flex-btn-label" placeholder="點我開啟（可空白）" style="padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;width:100%;box-sizing:border-box;margin-top:0;">
+        <label class="modal-label">按鈕連結 (URL)</label>
+        <input type="text" id="line-flex-btn-url" placeholder="https://youtube.com/..." style="padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;width:100%;box-sizing:border-box;margin-top:0;">
+      </div>
+
+      <div class="error-msg" id="line-error" style="margin-top:10px;"></div>
+    </div>
+    <div class="modal-btns" style="margin-top:16px;">
+      <button class="btn-secondary" onclick="closeLineModal()">取消</button>
+      <button class="btn-line" id="line-confirm-btn" onclick="submitLineForm()">確認加入排程</button>
+    </div>
+  </div>
+</div>
+
+<!-- 重新命名彈窗 -->
+<div class="modal-overlay" id="rename-modal">
+  <div class="modal">
+    <h3>✏️ 重新命名</h3>
+    <p id="rename-modal-desc">輸入新名稱</p>
+    <input type="text" id="rename-name-input" placeholder="新名稱" />
+    <div class="error-msg" id="rename-error"></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeRenameModal()">取消</button>
+      <button class="btn-primary" id="rename-confirm-btn" onclick="confirmRename()">確認</button>
+    </div>
+  </div>
+</div>
+
+<!-- 重點整理彈窗 -->
+<div class="modal-overlay" id="summarize-modal">
+  <div class="modal">
+    <h3>重點整理</h3>
+    <p id="summarize-filename" style="font-size:12px;color:#555;margin-bottom:14px;word-break:break-all;"></p>
+    <div id="summarize-progress" style="text-align:center;padding:16px 0;font-size:13px;color:#555;">正在處理，請稍候（約 1–3 分鐘）...</div>
+    <div class="error-msg" id="summarize-error"></div>
+    <div class="modal-btns" id="summarize-done-btns" style="display:none;">
+      <button class="btn-secondary" onclick="closeSummarizeModal()">關閉</button>
+      <a id="summarize-notion-link" href="#" onclick="openExternal(this.href);return false;" class="btn-primary" style="text-decoration:none;display:flex;align-items:center;justify-content:center;">開啟 Notion 頁面</a>
+    </div>
+    <div class="modal-btns" id="summarize-cancel-btns">
+      <button class="btn-secondary" onclick="closeSummarizeModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 上傳前確認檔名彈窗 -->
+<div class="modal-overlay" id="upload-rename-modal">
+  <div class="modal">
+    <h3>✏️ 確認檔案名稱</h3>
+    <p style="font-size:12px;color:#888;margin-bottom:14px;">可直接修改後再上傳，或按「略過」跳過此檔</p>
+    <input type="text" id="upload-rename-input" placeholder="檔案名稱" />
+    <div class="error-msg" id="upload-rename-error"></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="cancelUploadRename()">略過此檔</button>
+      <button class="btn-primary" onclick="confirmUploadRename()">確認上傳</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="convert-modal">
+  <div class="modal">
+    <h3>安排表轉檔</h3>
+    <p id="convert-filename" style="font-size:12px;color:#555;margin-bottom:14px;word-break:break-all;"></p>
+    <div id="convert-progress" style="text-align:center;padding:16px 0;font-size:13px;color:#555;">正在讀取並轉換，請稍候...</div>
+    <div class="error-msg" id="convert-error"></div>
+    <div class="modal-btns" id="convert-done-btns" style="display:none;">
+      <button class="btn-secondary" onclick="closeConvertModal()">關閉</button>
+      <a id="convert-sheet-link" href="#" onclick="openExternal(this.href);return false;" class="btn-primary" style="text-decoration:none;display:flex;align-items:center;justify-content:center;">開啟 Google Sheet</a>
+    </div>
+    <div class="modal-btns" id="convert-cancel-btns">
+      <button class="btn-secondary" onclick="closeConvertModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 主畫面（直接顯示，不需登入） -->
+<div class="container">
+  <div class="top-bar">
+    <h1>📁 黎明寶庫</h1>
+    <div class="top-bar-right">
+      <span class="status-badge" id="status-badge">訪客模式</span>
+      <button id="auth-btn" class="btn-primary" onclick="handleAuthBtn()">登入</button>
+    </div>
+  </div>
+
+  <!-- 類別選擇畫面 -->
+  <div id="category-view">
+    <div class="section-title">選擇類別<span id="category-drive-btn"></span></div>
+    <div class="folder-grid" id="category-grid"></div>
+  </div>
+
+  <!-- 子資料夾 + 檔案畫面 -->
+  <div id="folder-view" style="display:none">
+    <div class="breadcrumb" id="breadcrumb"></div>
+    <div class="section-title">選擇資料夾<button class="sort-btn" id="sort-btn" onclick="toggleSort()">A→Z ▲</button><span id="folder-drive-btn"></span></div>
+    <div class="folder-grid" id="folder-grid"></div>
+
+    <div class="upload-section">
+      <div id="upload-area">
+        <div class="empty-files">請先選擇資料夾</div>
+      </div>
+      <div class="upload-list" id="upload-list"></div>
+    </div>
+
+    <div class="file-section">
+      <div class="file-section-header">
+        <span>檔案列表</span>
+        <span class="badge" id="current-folder-badge">請先選擇資料夾</span>
+        <button class="btn-view-toggle" id="view-toggle-btn" onclick="toggleViewMode()" title="切換顯示方式">≡ 清單</button>
+        <button class="btn-view-toggle" id="share-gallery-btn" onclick="copyGalleryLink()" title="複製圖庫連結">🔗 分享</button>
+        <a id="sheet-btn" href="https://docs.google.com/spreadsheets/d/1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k/edit" onclick="openExternal(this.href);return false;" class="btn-view-toggle" style="text-decoration:none;display:none;" title="LINE 排程總表">總表</a>
+      </div>
+      <div id="file-list">
+        <div class="empty-files">請先選擇資料夾</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="version-footer" id="version-footer"></div>
+</div>
+
+<script>
+  const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
+
+  document.getElementById('version-footer').textContent = '最後發布時間：2026-04-27 23:45';
+
+  let CATEGORIES = []; // 從 Google Sheet 動態載入
+
+  let password = '';
+  let isLoggedIn = false;
+  let currentCategoryId = null;
+  let currentCategoryName = '';
+  let currentFolderId = null;
+  let currentFolderName = '';
+  let folderStack = []; // [{id, name}, ...]，從類別往下的資料夾路徑
+  let sortAsc = true;
+  let _renameType = '';
+  let _renameId = '';
+  let _renameTargets = {};
+  let _deleteType = '';
+  let _deleteId = '';
+  let viewMode = 'grid'; // 'grid' 或 'list'
+  let _lineUsers = [];   // 發送對象快取
+  let _currentImages = []; // 目前資料夾圖片快取（供 LINE 彈窗使用）
+  let _uploadCount = 0;   // 進行中的上傳數量（beforeunload 用）
+
+  // 頁面載入：顯示類別選擇畫面
+  window.onload = () => { history.replaceState({ view: 'home' }, ''); loadCategories(); };
+
+  // ── 登入 / 登出 ──────────────────────────
+
+  function handleAuthBtn() {
+    if (isLoggedIn) {
+      logout();
+    } else {
+      openLoginModal();
+    }
+  }
+
+  function openLoginModal() {
+    document.getElementById('login-password').value = '';
+    document.getElementById('login-error').textContent = '';
+    document.getElementById('login-success').textContent = '';
+    document.getElementById('login-confirm-btn').disabled = false;
+    document.getElementById('login-confirm-btn').textContent = '登入';
+    document.getElementById('login-modal').classList.add('show');
+    setTimeout(() => document.getElementById('login-password').focus(), 100);
+  }
+
+  function closeLoginModal() {
+    document.getElementById('login-modal').classList.remove('show');
+  }
+
+  async function confirmLogin() {
+    const input = document.getElementById('login-password').value.trim();
+    if (!input) return;
+
+    // 顯示驗證中狀態
+    const btn = document.getElementById('login-confirm-btn');
+    btn.disabled = true;
+    btn.textContent = '驗證中...';
+    document.getElementById('login-error').textContent = '';
+
+    try {
+      // 呼叫專門的驗證端點
+      const res = await fetch(`${WORKER_URL}/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: input })
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        // 登入成功
+        password = input;
+        isLoggedIn = true;
+        document.getElementById('login-success').textContent = '✓ 登入成功！';
+        document.getElementById('status-badge').textContent = '已登入';
+        document.getElementById('status-badge').className = 'status-badge logged-in';
+        document.getElementById('auth-btn').textContent = '登出';
+        document.getElementById('auth-btn').className = 'btn-ghost';
+        // 短暫顯示成功訊息後關閉
+        setTimeout(() => {
+          closeLoginModal();
+          updateDriveBtn();
+          if (currentCategoryId) {
+            loadFolders();
+            const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
+            if (!noUpload) showUploadZone();
+          }
+        }, 800);
+      } else {
+        // 登入失敗
+        document.getElementById('login-error').textContent = '✗ 密碼錯誤，請再試一次（提示：523...）';
+        document.getElementById('status-badge').textContent = '密碼錯誤';
+        document.getElementById('status-badge').className = 'status-badge error';
+        btn.disabled = false;
+        btn.textContent = '登入';
+      }
+    } catch (err) {
+      document.getElementById('login-error').textContent = '網路錯誤，請稍後再試';
+      btn.disabled = false;
+      btn.textContent = '登入';
+    }
+  }
+
+  function logout() {
+    password = '';
+    isLoggedIn = false;
+    document.getElementById('status-badge').textContent = '訪客模式';
+    document.getElementById('status-badge').className = 'status-badge';
+    document.getElementById('auth-btn').textContent = '登入';
+    document.getElementById('auth-btn').className = 'btn-primary';
+    updateDriveBtn();
+    if (currentCategoryId) {
+      loadFolders();
+      const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
+      if (!noUpload) showLoginHint();
+    }
+  }
+
+  // ── 類別 ──────────────────────────────────
+
+  async function loadCategories() {
+    const grid = document.getElementById('category-grid');
+    grid.innerHTML = '<div class="empty-files">載入中...</div>';
+    try {
+      const res = await fetch(`${WORKER_URL}/categories`);
+      const data = await res.json();
+      CATEGORIES = data.categories || [];
+    } catch (e) {
+      grid.innerHTML = '<div class="empty-files">無法載入類別，請稍後再試</div>';
+      return;
+    }
+    grid.innerHTML = '';
+    CATEGORIES.forEach(cat => {
+      const card = document.createElement('div');
+      card.className = 'folder-card';
+      card.innerHTML = `<div class="icon">${cat.icon}</div><div class="name">${cat.name}</div>`;
+      if (cat.type === 'link' && cat.url) {
+        card.onclick = () => openExternal(cat.url);
+      } else {
+        card.onclick = () => selectCategory(cat.id, cat.name);
+      }
+      grid.appendChild(card);
+    });
+  }
+
+  function selectCategory(id, name) {
+    currentCategoryId = id;
+    currentCategoryName = name;
+    currentFolderId = null;
+    currentFolderName = '';
+    folderStack = [];
+    const cat = CATEGORIES.find(c => c.id === id);
+    sortAsc = (cat?.sort !== 'desc');
+    updateSortBtn();
+    document.getElementById('category-view').style.display = 'none';
+    document.getElementById('folder-view').style.display = 'block';
+    document.getElementById('current-folder-badge').textContent = name;
+    document.getElementById('upload-list').innerHTML = '';
+    viewMode = 'grid';
+    updateViewToggleBtn();
+    renderBreadcrumb();
+    updateDriveBtn();
+    loadFolders();
+    loadFiles(id);
+    document.getElementById('sheet-btn').style.display = cat?.linePublish ? '' : 'none';
+    // 類別根目錄也可上傳（除非 noUpload）
+    const noUpload = cat?.noUpload;
+    if (noUpload) {
+      document.getElementById('upload-area').innerHTML = '';
+    } else if (isLoggedIn) {
+      showUploadZone();
+    } else {
+      showLoginHint();
+    }
+    history.pushState({ view: 'category', id, name }, '');
+  }
+
+  function goHome() {
+    currentCategoryId = null;
+    currentCategoryName = '';
+    currentFolderId = null;
+    currentFolderName = '';
+    folderStack = [];
+    document.getElementById('folder-view').style.display = 'none';
+    document.getElementById('category-view').style.display = 'block';
+    document.getElementById('sheet-btn').style.display = 'none';
+    history.pushState({ view: 'home' }, '');
+  }
+
+  function goToStackLevel(index) {
+    // index = -1 表示回到類別層（只顯示資料夾，不選中任何子資料夾）
+    // index = 0..n 表示回到 folderStack[index] 那層
+    if (index < 0) {
+      currentFolderId = null;
+      currentFolderName = '';
+      folderStack = [];
+    } else {
+      folderStack = folderStack.slice(0, index + 1);
+      currentFolderId = folderStack[index].id;
+      currentFolderName = folderStack[index].name;
+    }
+    renderBreadcrumb();
+    loadFolders();
+    if (currentFolderId) {
+      loadFiles(currentFolderId);
+      document.getElementById('current-folder-badge').textContent = currentFolderName;
+      if (isLoggedIn) showUploadZone(); else showLoginHint();
+    } else {
+      // 回到類別根目錄，同樣載入該層檔案
+      document.getElementById('current-folder-badge').textContent = currentCategoryName;
+      const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
+      if (noUpload) {
+        document.getElementById('upload-area').innerHTML = '';
+      } else if (isLoggedIn) {
+        showUploadZone();
+      } else {
+        showLoginHint();
+      }
+      loadFiles(currentCategoryId);
+    }
+    if (index < 0) {
+      history.pushState({ view: 'category', id: currentCategoryId, name: currentCategoryName }, '');
+    } else {
+      history.pushState({ view: 'folder', stack: [...folderStack], categoryId: currentCategoryId, categoryName: currentCategoryName }, '');
+    }
+  }
+
+  function renderBreadcrumb() {
+    const bc = document.getElementById('breadcrumb');
+    let html = `<span class="breadcrumb-home" onclick="goHome()">全部</span>`;
+    html += `<span class="breadcrumb-sep">›</span>`;
+    html += `<span class="breadcrumb-home" onclick="goToStackLevel(-1)">${currentCategoryName}</span>`;
+    folderStack.forEach((f, i) => {
+      html += `<span class="breadcrumb-sep">›</span>`;
+      if (i < folderStack.length - 1) {
+        html += `<span class="breadcrumb-home" onclick="goToStackLevel(${i})">${f.name}</span>`;
+      } else {
+        html += `<span class="breadcrumb-current">${f.name}</span>`;
+      }
+    });
+    bc.innerHTML = html;
+  }
+
+  // ── 資料夾 ────────────────────────────────
+
+  async function loadFolders() {
+    const browseFolderId = folderStack.length > 0 ? folderStack[folderStack.length - 1].id : currentCategoryId;
+    const res = await fetch(`${WORKER_URL}/folders?folderId=${browseFolderId}`);
+    const data = await res.json();
+    const grid = document.getElementById('folder-grid');
+    grid.innerHTML = '';
+
+    (data.files || []).sort((a, b) =>
+      sortAsc ? a.name.localeCompare(b.name, 'zh-TW') : b.name.localeCompare(a.name, 'zh-TW')
+    ).forEach(folder => {
+      const card = document.createElement('div');
+      card.className = 'folder-card' + (folder.id === currentFolderId ? ' active' : '');
+      card.innerHTML = `<div class="icon">📁</div><div class="name">${folder.name}</div>`;
+      card.onclick = () => selectFolder(folder.id, folder.name, card);
+      if (isLoggedIn) {
+        const renameBtn = document.createElement('button');
+        renameBtn.className = 'folder-rename-btn';
+        renameBtn.textContent = '✏️';
+        renameBtn.title = '重新命名';
+        renameBtn.onclick = (e) => {
+          e.stopPropagation();
+          openRenameModal('folder', folder.id, folder.name);
+        };
+        card.appendChild(renameBtn);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'folder-delete-btn';
+        deleteBtn.textContent = '🗑️';
+        deleteBtn.title = '移至刪除區';
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          openDeleteModal('folder', folder.id, folder.name);
+        };
+        card.appendChild(deleteBtn);
+      }
+      grid.appendChild(card);
+    });
+
+    // 登入後才顯示新增資料夾按鈕
+    if (isLoggedIn) {
+      const addCard = document.createElement('div');
+      addCard.className = 'add-folder-card';
+      addCard.innerHTML = `<div class="plus">＋</div><div class="label">新增資料夾</div>`;
+      addCard.onclick = openFolderModal;
+      grid.appendChild(addCard);
+    }
+  }
+
+  function selectFolder(id, name, cardEl) {
+    folderStack.push({ id, name });
+    currentFolderId = id;
+    currentFolderName = name;
+    history.pushState({ view: 'folder', stack: [...folderStack], categoryId: currentCategoryId, categoryName: currentCategoryName }, '');
+    document.getElementById('current-folder-badge').textContent = name;
+    renderBreadcrumb();
+    loadFolders();
+    loadFiles(id);
+    const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
+    if (noUpload) {
+      document.getElementById('upload-area').innerHTML = '';
+    } else if (isLoggedIn) {
+      showUploadZone();
+    } else {
+      showLoginHint();
+    }
+    if (window.innerWidth <= 768) {
+      setTimeout(() => {
+        document.querySelector('.file-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 300);
+    }
+  }
+
+  function showLoginHint() {
+    document.getElementById('upload-area').innerHTML = `
+      <div class="login-hint">
+        <p>登入後才能上傳檔案或新增資料夾</p>
+        <button class="btn-primary" onclick="openLoginModal()">立即登入</button>
+      </div>
+    `;
+  }
+
+  function openFolderModal() {
+    document.getElementById('folder-name-input').value = '';
+    document.getElementById('folder-modal').classList.add('show');
+    setTimeout(() => document.getElementById('folder-name-input').focus(), 100);
+  }
+
+  function closeFolderModal() {
+    document.getElementById('folder-modal').classList.remove('show');
+  }
+
+  async function confirmCreateFolder() {
+    const name = document.getElementById('folder-name-input').value.trim();
+    if (!name) return;
+    await fetch(`${WORKER_URL}/folders`, {
+      method: 'POST',
+      headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, parentId: currentCategoryId })
+    });
+    closeFolderModal();
+    loadFolders();
+  }
+
+  // ── 檔案列表（公開）─────────────────────
+
+  async function loadFiles(folderId) {
+    const list = document.getElementById('file-list');
+    list.innerHTML = '<div class="empty-files">載入中...</div>';
+    const res = await fetch(`${WORKER_URL}/files?folderId=${folderId}`);
+    const data = await res.json();
+    list.className = viewMode === 'list' ? 'list-mode' : '';
+    if (!data.files || data.files.length === 0) {
+      list.innerHTML = '<div class="empty-files">這個資料夾還沒有檔案</div>';
+      document.getElementById('current-folder-badge').textContent = '0 個檔案';
+      return;
+    }
+    _renameTargets = {};
+    const sortedFiles = (data.files || []).sort((a, b) =>
+      sortAsc ? a.name.localeCompare(b.name, 'zh-TW') : b.name.localeCompare(a.name, 'zh-TW')
+    );
+    sortedFiles.forEach(f => { _renameTargets[f.id] = f.name; });
+
+    const images = sortedFiles.filter(f => f.mimeType && f.mimeType.startsWith('image/'));
+    const videos = sortedFiles.filter(f => f.mimeType && f.mimeType.startsWith('video/'));
+    const others = sortedFiles.filter(f => !f.mimeType || (!f.mimeType.startsWith('image/') && !f.mimeType.startsWith('video/')));
+
+    // 更新圖片快取（供 LINE 彈窗圖片選單使用）
+    _currentImages = images;
+
+    // 判斷是否顯示 LINE 發布按鈕（登入 + 類別設定 linePublish=true）
+    const showLine = isLoggedIn && CATEGORIES.find(c => c.id === currentCategoryId)?.linePublish;
+
+    let html = '';
+
+    if (viewMode === 'list') {
+      // ── 清單模式：所有檔案以列表列出 ──
+      html = sortedFiles.map(f => {
+        const safeName = f.name.replace(/'/g, "\\'");
+        const isMedia = f.mimeType && (f.mimeType.startsWith('image/') || f.mimeType.startsWith('video/'));
+        const renameBtn = isLoggedIn
+          ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>`
+          : '';
+        const deleteBtn = isLoggedIn
+          ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file','${f.id}','${safeName}')">刪除</button>`
+          : '';
+        const lineBtn = showLine
+          ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>`
+          : '';
+        const summarizeBtn = isLoggedIn && f.mimeType && f.mimeType.startsWith('audio/')
+          ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>`
+          : '';
+        const convertBtn = showLine && /^(\d{4}-\d{2}|\d{6})/.test(f.name) && f.name.includes('安排表')
+          ? `<button class="btn-action btn-action-convert" onclick="convertSchedule('${f.id}','${safeName}')">轉檔</button>`
+          : '';
+        return `
+          <div class="file-row">
+            <div class="file-type-icon">${getFileIcon(f.mimeType)}</div>
+            <div class="file-info">
+              <div class="file-name">${f.name}</div>
+              <div class="file-meta">${formatSize(f.size)}</div>
+            </div>
+            <div class="file-date">${formatDate(f.createdTime)}</div>
+            <div class="file-actions">
+              <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a>
+              <a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>
+              ${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}${convertBtn}
+            </div>
+          </div>
+        `;
+      }).join('');
+    } else {
+      // ── 格狀模式：圖片 / 影片以縮圖格呈現，其他以清單呈現 ──
+      function renderMediaGrid(items, label, isVideo) {
+        let g = `<div class="img-section-label">${label}（${items.length}）</div><div class="img-grid">`;
+        g += items.map(f => {
+          const safeName = f.name.replace(/'/g, "\\'");
+          const deleteBtn = isLoggedIn
+            ? `<button class="img-delete-btn" onclick="event.preventDefault();openDeleteModal('file','${f.id}','${safeName}')">🗑</button>`
+            : '';
+          const lineBtn = showLine
+            ? `<button class="img-line-btn" onclick="event.preventDefault();openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">LINE</button>`
+            : '';
+          const thumb = `<img class="img-thumb" src="https://drive.google.com/thumbnail?id=${f.id}&sz=w300" alt="${f.name}" loading="lazy">`;
+          const playOverlay = isVideo ? `<div class="img-play-overlay"></div>` : '';
+          return `
+            <div class="img-card">
+              <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;">
+                ${thumb}${playOverlay}
+              </a>
+              <div class="img-name">${f.name}</div>
+              ${deleteBtn}${lineBtn}
+            </div>`;
+        }).join('');
+        g += `</div>`;
+        return g;
+      }
+
+      if (images.length > 0) {
+        html += renderMediaGrid(images, '圖片', false);
+        if (videos.length > 0 || others.length > 0) html += `<hr class="img-section-divider">`;
+      }
+      if (videos.length > 0) {
+        html += renderMediaGrid(videos, '影片', true);
+        if (others.length > 0) html += `<hr class="img-section-divider">`;
+      }
+
+      html += others.map(f => {
+        const safeName = f.name.replace(/'/g, "\\'");
+        const renameBtn = isLoggedIn
+          ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>`
+          : '';
+        const deleteBtn = isLoggedIn
+          ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file', '${f.id}')">刪除</button>`
+          : '';
+        const lineBtn = showLine
+          ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>`
+          : '';
+        const summarizeBtn = isLoggedIn && f.mimeType && f.mimeType.startsWith('audio/')
+          ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>`
+          : '';
+        const convertBtn = showLine && /^(\d{4}-\d{2}|\d{6})/.test(f.name) && f.name.includes('安排表')
+          ? `<button class="btn-action btn-action-convert" onclick="convertSchedule('${f.id}','${safeName}')">轉檔</button>`
+          : '';
+        return `
+          <div class="file-row">
+            <div class="file-type-icon">${getFileIcon(f.mimeType)}</div>
+            <div class="file-info">
+              <div class="file-name">${f.name}</div>
+              <div class="file-meta">${formatSize(f.size)}</div>
+            </div>
+            <div class="file-date">${formatDate(f.createdTime)}</div>
+            <div class="file-actions">
+              <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a>
+              <a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>
+              ${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}${convertBtn}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    list.innerHTML = html || '<div class="empty-files">這個資料夾還沒有檔案</div>';
+    document.getElementById('current-folder-badge').textContent = `${data.files.length} 個檔案`;
+  }
+
+  // ── 上傳功能（需要登入）─────────────────
+
+  function showUploadZone() {
+    const area = document.getElementById('upload-area');
+    const targetName = currentFolderName || currentCategoryName || '目前資料夾';
+    area.innerHTML = `
+      <div class="upload-target">上傳至：📁 ${targetName}</div>
+      <div class="upload-zone" id="upload-zone">
+        <div class="upload-icon">⬆️</div>
+        <div class="upload-text">拖曳檔案到這裡</div>
+        <div class="upload-hint">支援所有格式，單檔最大 100 MB</div>
+        <label class="upload-btn-label">選擇檔案
+          <input type="file" style="display:none" multiple onchange="handleFiles(this.files)">
+        </label>
+      </div>
+    `;
+    const zone = document.getElementById('upload-zone');
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('dragover');
+      handleFiles(e.dataTransfer.files);
+    });
+  }
+
+  const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
+
+  async function handleFiles(files) {
+    const oversized = Array.from(files).filter(f => f.size > MAX_FILE_SIZE);
+    if (oversized.length > 0) {
+      const names = oversized.map(f => `・${f.name}（${formatSize(f.size)}）`).join('\n');
+      alert(`以下檔案超過 100 MB 限制，無法上傳：\n\n${names}`);
+    }
+    const valid = Array.from(files).filter(f => f.size <= MAX_FILE_SIZE);
+    if (valid.length === 0) return;
+
+    const showRename = !!CATEGORIES.find(c => c.id === currentCategoryId)?.linePublish;
+    for (const file of valid) {
+      let fileName = file.name;
+      if (showRename) {
+        const newName = await promptRenameBeforeUpload(file);
+        if (newName === null) continue; // 略過此檔
+        fileName = newName;
+      }
+      await uploadFile(file, fileName);
+    }
+    loadFiles(currentFolderId || currentCategoryId);
+  }
+
+  let _uploadRenameResolve = null;
+
+  function promptRenameBeforeUpload(file) {
+    return new Promise(resolve => {
+      _uploadRenameResolve = resolve;
+      document.getElementById('upload-rename-input').value = file.name;
+      document.getElementById('upload-rename-error').textContent = '';
+      document.getElementById('upload-rename-modal').classList.add('show');
+      setTimeout(() => {
+        const input = document.getElementById('upload-rename-input');
+        input.focus();
+        input.select();
+      }, 80);
+    });
+  }
+
+  function confirmUploadRename() {
+    const name = document.getElementById('upload-rename-input').value.trim();
+    if (!name) { document.getElementById('upload-rename-error').textContent = '請輸入檔案名稱'; return; }
+    document.getElementById('upload-rename-modal').classList.remove('show');
+    if (_uploadRenameResolve) { _uploadRenameResolve(name); _uploadRenameResolve = null; }
+  }
+
+  function cancelUploadRename() {
+    document.getElementById('upload-rename-modal').classList.remove('show');
+    if (_uploadRenameResolve) { _uploadRenameResolve(null); _uploadRenameResolve = null; }
+  }
+
+async function uploadFile(file, customName) {
+  const fileName = customName || file.name;
+  _uploadCount++;
+  const itemId = 'upload-' + Date.now() + Math.random();
+  const list = document.getElementById('upload-list');
+  const item = document.createElement('div');
+  item.className = 'upload-item';
+  item.id = itemId;
+  item.innerHTML = `
+    <div class="upload-item-header">
+      <div class="upload-item-name">${fileName}</div>
+      <div class="upload-item-status" id="${itemId}-status">上傳中...</div>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="${itemId}-bar" style="width:5%"></div>
+    </div>
+  `;
+  list.prepend(item);
+
+  try {
+    const res = await fetch(`${WORKER_URL}/upload`, {
+      method: 'POST',
+      headers: {
+        'X-Password': password,
+        'Content-Type': file.type || 'application/octet-stream',
+        'X-File-Meta': encodeURIComponent(JSON.stringify({
+          fileName,
+          mimeType: file.type || 'application/octet-stream',
+          folderId: currentFolderId || currentCategoryId
+        }))
+      },
+      body: file,
+    });
+
+    if (res.ok) {
+      document.getElementById(`${itemId}-bar`).style.width = '100%';
+      document.getElementById(`${itemId}-bar`).className = 'progress-fill done';
+      document.getElementById(`${itemId}-status`).textContent = '完成 ✓';
+      document.getElementById(`${itemId}-status`).className = 'upload-item-status done';
+    } else {
+      throw new Error('上傳失敗');
+    }
+  } catch (err) {
+    document.getElementById(`${itemId}-status`).textContent = '上傳失敗';
+    document.getElementById(`${itemId}-status`).className = 'upload-item-status error';
+  } finally {
+    _uploadCount--;
+  }
+}
+
+  // ── 鍵盤快捷鍵 ───────────────────────────
+
+  document.getElementById('upload-rename-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirmUploadRename();
+    if (e.key === 'Escape') cancelUploadRename();
+  });
+  document.getElementById('login-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirmLogin();
+    if (e.key === 'Escape') closeLoginModal();
+  });
+  document.getElementById('folder-name-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirmCreateFolder();
+    if (e.key === 'Escape') closeFolderModal();
+  });
+  document.getElementById('rename-name-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirmRename();
+    if (e.key === 'Escape') closeRenameModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      if (document.getElementById('delete-modal').classList.contains('show')) closeDeleteModal();
+      if (document.getElementById('line-modal').classList.contains('show')) closeLineModal();
+    }
+  });
+
+  // ── 瀏覽器上一頁 / 防止上傳中離頁 ──────────
+  window.addEventListener('popstate', e => {
+    const state = e.state;
+    if (!state || state.view === 'home') {
+      currentCategoryId = null;
+      currentCategoryName = '';
+      currentFolderId = null;
+      currentFolderName = '';
+      folderStack = [];
+      document.getElementById('folder-view').style.display = 'none';
+      document.getElementById('category-view').style.display = 'block';
+      document.getElementById('sheet-btn').style.display = 'none';
+      updateDriveBtn();
+    } else if (state.view === 'category') {
+      currentCategoryId = state.id;
+      currentCategoryName = state.name;
+      currentFolderId = null;
+      currentFolderName = '';
+      folderStack = [];
+      const cat = CATEGORIES.find(c => c.id === state.id);
+      sortAsc = (cat?.sort !== 'desc');
+      updateSortBtn();
+      document.getElementById('category-view').style.display = 'none';
+      document.getElementById('folder-view').style.display = 'block';
+      document.getElementById('current-folder-badge').textContent = state.name;
+      document.getElementById('upload-list').innerHTML = '';
+      viewMode = 'grid';
+      updateViewToggleBtn();
+      renderBreadcrumb();
+      updateDriveBtn();
+      loadFolders();
+      loadFiles(state.id);
+      document.getElementById('sheet-btn').style.display = cat?.linePublish ? '' : 'none';
+      const noUpload1 = cat?.noUpload;
+      if (noUpload1) {
+        document.getElementById('upload-area').innerHTML = '';
+      } else if (isLoggedIn) {
+        showUploadZone();
+      } else {
+        showLoginHint();
+      }
+    } else if (state.view === 'folder') {
+      currentCategoryId = state.categoryId;
+      currentCategoryName = state.categoryName;
+      folderStack = state.stack;
+      currentFolderId = state.stack[state.stack.length - 1].id;
+      currentFolderName = state.stack[state.stack.length - 1].name;
+      document.getElementById('current-folder-badge').textContent = currentFolderName;
+      document.getElementById('upload-list').innerHTML = '';
+      renderBreadcrumb();
+      updateDriveBtn();
+      loadFolders();
+      loadFiles(currentFolderId);
+      const cat2 = CATEGORIES.find(c => c.id === currentCategoryId);
+      document.getElementById('sheet-btn').style.display = cat2?.linePublish ? '' : 'none';
+      const noUpload2 = cat2?.noUpload;
+      if (noUpload2) {
+        document.getElementById('upload-area').innerHTML = '';
+      } else if (isLoggedIn) {
+        showUploadZone();
+      } else {
+        showLoginHint();
+      }
+    }
+  });
+
+  window.addEventListener('beforeunload', e => {
+    if (_uploadCount > 0) e.preventDefault();
+  });
+
+  // ── 重新命名 ──────────────────────────────
+
+  function openRenameModal(type, id, name) {
+    _renameType = type;
+    _renameId = id;
+    const currentName = name !== undefined ? name : (_renameTargets[id] || '');
+    document.getElementById('rename-modal-desc').textContent =
+      type === 'folder' ? '輸入資料夾新名稱' : '輸入檔案新名稱';
+    document.getElementById('rename-name-input').value = currentName;
+    document.getElementById('rename-error').textContent = '';
+    document.getElementById('rename-confirm-btn').disabled = false;
+    document.getElementById('rename-confirm-btn').textContent = '確認';
+    document.getElementById('rename-modal').classList.add('show');
+    setTimeout(() => {
+      const input = document.getElementById('rename-name-input');
+      input.focus();
+      input.select();
+    }, 100);
+  }
+
+  function closeRenameModal() {
+    document.getElementById('rename-modal').classList.remove('show');
+  }
+
+  async function confirmRename() {
+    const newName = document.getElementById('rename-name-input').value.trim();
+    if (!newName) return;
+    const btn = document.getElementById('rename-confirm-btn');
+    btn.disabled = true;
+    btn.textContent = '處理中...';
+    document.getElementById('rename-error').textContent = '';
+    try {
+      const res = await fetch(`${WORKER_URL}/rename`, {
+        method: 'PATCH',
+        headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: _renameId, newName })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        closeRenameModal();
+        if (_renameType === 'folder') {
+          loadFolders();
+        } else {
+          loadFiles(currentFolderId || currentCategoryId);
+        }
+      } else {
+        document.getElementById('rename-error').textContent = data.error || '重新命名失敗';
+        btn.disabled = false;
+        btn.textContent = '確認';
+      }
+    } catch (err) {
+      document.getElementById('rename-error').textContent = '網路錯誤，請稍後再試';
+      btn.disabled = false;
+      btn.textContent = '確認';
+    }
+  }
+
+  // ── 刪除（移至刪除區）────────────────────
+
+  function openDeleteModal(type, id, name) {
+    _deleteType = type;
+    _deleteId = id;
+    name = name || _renameTargets[id] || id;
+    const typeLabel = type === 'folder' ? '資料夾' : '檔案';
+    document.getElementById('delete-modal-desc').textContent =
+      `確定要將${typeLabel}「${name}」移至刪除區嗎？`;
+    document.getElementById('delete-error').textContent = '';
+    document.getElementById('delete-confirm-btn').disabled = false;
+    document.getElementById('delete-confirm-btn').textContent = '確認移除';
+    document.getElementById('delete-modal').classList.add('show');
+  }
+
+  function closeDeleteModal() {
+    document.getElementById('delete-modal').classList.remove('show');
+  }
+
+  async function confirmDeleteItem() {
+    const btn = document.getElementById('delete-confirm-btn');
+    btn.disabled = true;
+    btn.textContent = '處理中...';
+    document.getElementById('delete-error').textContent = '';
+    const fromParentId = _deleteType === 'folder'
+      ? (folderStack.length > 0 ? folderStack[folderStack.length - 1].id : currentCategoryId)
+      : (currentFolderId || currentCategoryId);
+    try {
+      const res = await fetch(`${WORKER_URL}/move`, {
+        method: 'PATCH',
+        headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: _deleteId, fromParentId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        closeDeleteModal();
+        if (_deleteType === 'folder') {
+          loadFolders();
+        } else {
+          loadFiles(currentFolderId || currentCategoryId);
+        }
+      } else {
+        document.getElementById('delete-error').textContent = data.error || '移動失敗';
+        btn.disabled = false;
+        btn.textContent = '確認移除';
+      }
+    } catch (err) {
+      document.getElementById('delete-error').textContent = '網路錯誤，請稍後再試';
+      btn.disabled = false;
+      btn.textContent = '確認移除';
+    }
+  }
+
+  // ── LINE 排程發送 ─────────────────────────
+
+  async function openLineModal(fileId, fileName, mimeType) {
+    document.getElementById('line-error').textContent = '';
+    document.getElementById('line-confirm-btn').disabled = false;
+    document.getElementById('line-confirm-btn').textContent = '確認加入排程';
+
+    // 初始化時間選擇器（只建一次）
+    const timeSelect = document.getElementById('line-time');
+    if (timeSelect.options.length === 0) {
+      for (let h = 0; h < 24; h++) {
+        for (let m = 0; m < 60; m += 30) {
+          const opt = document.createElement('option');
+          opt.value = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+          opt.textContent = opt.value;
+          timeSelect.appendChild(opt);
+        }
+      }
+    }
+    // 預設日期 = 今天，時間 = 09:00
+    const now = new Date();
+    document.getElementById('line-date').value =
+      `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    timeSelect.value = '09:00';
+
+    // 載入發送對象（每次都重新嘗試，直到成功為止）
+    let usersError = '';
+    try {
+      const res = await fetch(`${WORKER_URL}/users`);
+      const d = await res.json();
+      if (d.error) {
+        usersError = d.error;
+        console.error('[LINE Modal] 讀取 Users 失敗:', d.error);
+      }
+      _lineUsers = d.users || [];
+    } catch (e) {
+      usersError = e.message;
+      console.error('[LINE Modal] fetch /users 例外:', e);
+      _lineUsers = [];
+    }
+    const targetSel = document.getElementById('line-target');
+    const allOption = `<option value="ALL" style="color:#e24b4a;font-weight:600;">👥 全部人</option>`;
+    if (_lineUsers.length) {
+      targetSel.innerHTML = allOption + _lineUsers.map(u =>
+        `<option value="${u.userId}">${u.userName}</option>`
+      ).join('');
+    } else {
+      targetSel.innerHTML = allOption + `<option value="">${usersError ? '讀取失敗：' + usersError : '（Users 頁籤無資料）'}</option>`;
+    }
+
+    // 建立圖片下拉選單（從 _currentImages）
+    const imgOpts = _currentImages.length
+      ? _currentImages.map(f =>
+          `<option value="https://lh3.googleusercontent.com/d/${f.id}" ${f.id === fileId ? 'selected' : ''}>${f.name}</option>`
+        ).join('')
+      : '<option value="">（此資料夾無圖片）</option>';
+    document.getElementById('line-image-select').innerHTML = imgOpts;
+    document.getElementById('line-flex-image').innerHTML = imgOpts;
+
+    // 預設訊息類型：圖片檔自動選「單張大圖」，其他選「純文字」
+    const isImg = mimeType && mimeType.startsWith('image/');
+    document.getElementById('line-type').value = isImg ? 'image' : 'text';
+    switchLineType();
+
+    document.getElementById('line-modal').classList.add('show');
+  }
+
+  function closeLineModal() {
+    document.getElementById('line-modal').classList.remove('show');
+  }
+
+  function switchLineType() {
+    const t = document.getElementById('line-type').value;
+    document.getElementById('line-text-section').style.display  = t === 'text'  ? 'block' : 'none';
+    document.getElementById('line-image-section').style.display = t === 'image' ? 'block' : 'none';
+    document.getElementById('line-flex-section').style.display  = t === 'flex'  ? 'block' : 'none';
+  }
+
+  async function submitLineForm() {
+    const btn = document.getElementById('line-confirm-btn');
+    const errEl = document.getElementById('line-error');
+    errEl.textContent = '';
+
+    const type     = document.getElementById('line-type').value;
+    const date     = document.getElementById('line-date').value;
+    const time     = document.getElementById('line-time').value;
+    const targetEl = document.getElementById('line-target');
+    const targetId = targetEl.value;
+    const targetName = targetEl.options[targetEl.selectedIndex]?.text || '';
+
+    if (!date || !time) { errEl.textContent = '請選擇發送時間'; return; }
+    if (!targetId)      { errEl.textContent = '請選擇發送對象'; return; }
+    if (targetId === 'ALL') {
+      if (!confirm('⚠️⚠️⚠️ 即將發送給「全部人」！！！\n\n請再次確認，此訊息將廣播給所有成員。\n\n確定要繼續嗎？')) return;
+    }
+
+    let content = '', title = '', subBtn = '';
+    if (type === 'text') {
+      content = document.getElementById('line-text').value.trim();
+      if (!content) { errEl.textContent = '請輸入文字內容'; return; }
+    } else if (type === 'image') {
+      content = document.getElementById('line-image-select').value;
+      if (!content) { errEl.textContent = '請選擇圖片'; return; }
+    } else {
+      content  = document.getElementById('line-flex-image').value;
+      title    = document.getElementById('line-flex-title').value.trim();
+      const desc     = document.getElementById('line-flex-desc').value.trim();
+      const btnLabel = document.getElementById('line-flex-btn-label').value.trim();
+      const btnUrl   = document.getElementById('line-flex-btn-url').value.trim();
+      subBtn = `${desc}｜${btnLabel}｜${btnUrl}`;
+      if (!content) { errEl.textContent = '請選擇封面圖片'; return; }
+    }
+
+    btn.disabled = true;
+    btn.textContent = '送出中...';
+
+    try {
+      const res = await fetch(`${WORKER_URL}/schedule`, {
+        method: 'POST',
+        headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ time: `${date} ${time}`, targetId, targetName, type, content, title, subBtn })
+      });
+      const d = await res.json();
+      if (res.ok) {
+        closeLineModal();
+        alert('✅ 已加入 LINE 排程！');
+      } else {
+        errEl.textContent = d.error || '送出失敗，請稍後再試';
+        btn.disabled = false;
+        btn.textContent = '確認加入排程';
+      }
+    } catch (e) {
+      errEl.textContent = '網路錯誤，請稍後再試';
+      btn.disabled = false;
+      btn.textContent = '確認加入排程';
+    }
+  }
+
+  // ── 外部瀏覽器 ───────────────────────────
+
+  function openExternal(url) {
+    if (/Line\//i.test(navigator.userAgent || '')) {
+      try {
+        const u = new URL(url);
+        u.searchParams.set('openExternalBrowser', '1');
+        url = u.toString();
+      } catch (e) {
+        url += (url.includes('?') ? '&' : '?') + 'openExternalBrowser=1';
+      }
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  function updateDriveBtn() {
+    const catBtn = document.getElementById('category-drive-btn');
+    const folderBtn = document.getElementById('folder-drive-btn');
+    if (!isLoggedIn) {
+      if (catBtn) catBtn.innerHTML = '';
+      if (folderBtn) folderBtn.innerHTML = '';
+      return;
+    }
+    const url = currentCategoryId
+      ? `https://drive.google.com/drive/folders/${currentCategoryId}`
+      : 'https://drive.google.com';
+    const btnHtml = `<button class="btn-drive" title="在 Google Drive 中開啟" onclick="openExternal('${url}')">☁️</button>`;
+    if (catBtn) catBtn.innerHTML = btnHtml;
+    if (folderBtn) folderBtn.innerHTML = btnHtml;
+  }
+
+  // ── 排序 ─────────────────────────────────
+
+  function updateSortBtn() {
+    const btn = document.getElementById('sort-btn');
+    if (btn) btn.textContent = sortAsc ? 'A→Z ▲' : 'Z→A ▼';
+  }
+
+  function toggleSort() {
+    sortAsc = !sortAsc;
+    updateSortBtn();
+    loadFolders();
+    if (currentFolderId || currentCategoryId) loadFiles(currentFolderId || currentCategoryId);
+  }
+
+  // ── 分享圖庫連結 ──────────────────────────
+
+  function copyGalleryLink() {
+    const id = currentFolderId || currentCategoryId;
+    if (!id) { alert('請先選擇資料夾'); return; }
+    const name = currentFolderName || currentCategoryName;
+    const base = location.href.replace(/[^\/]*$/, '');
+    const url = `${base}gallery.html?folderId=${id}&name=${encodeURIComponent(name)}`;
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = document.getElementById('share-gallery-btn');
+      btn.textContent = '✓ 已複製';
+      btn.style.color = '#3B6D11';
+      setTimeout(() => { btn.textContent = '🔗 分享'; btn.style.color = ''; }, 2000);
+    });
+  }
+
+  // ── 檢視切換 ─────────────────────────────
+
+  // ── 重點整理 ──────────────────────────────
+
+  async function openSummarizeModal(fileId, fileName) {
+    document.getElementById('summarize-filename').textContent = fileName;
+    document.getElementById('summarize-progress').innerHTML = '<span class="spinner"></span>正在處理，請稍候（約 1–3 分鐘）...';
+    document.getElementById('summarize-error').textContent = '';
+    document.getElementById('summarize-done-btns').style.display = 'none';
+    document.getElementById('summarize-cancel-btns').style.display = '';
+    document.getElementById('summarize-modal').classList.add('show');
+
+    try {
+      const res = await fetch(`${WORKER_URL}/summarize`, {
+        method: 'POST',
+        headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId, fileName }),
+        signal: AbortSignal.timeout(300000),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('summarize-progress').textContent = '✓ 整理完成';
+        document.getElementById('summarize-notion-link').href = data.notionUrl;
+        document.getElementById('summarize-done-btns').style.display = '';
+        document.getElementById('summarize-cancel-btns').style.display = 'none';
+      } else {
+        throw new Error(data.error || '處理失敗');
+      }
+    } catch (e) {
+      document.getElementById('summarize-progress').textContent = '';
+      const msg = (e.name === 'TimeoutError' || e.name === 'AbortError')
+        ? '處理逾時（免費方案限制 30 秒），建議升級 Cloudflare Workers 付費方案後重試'
+        : '錯誤：' + e.message;
+      document.getElementById('summarize-error').textContent = msg;
+    }
+  }
+
+  function closeSummarizeModal() {
+    document.getElementById('summarize-modal').classList.remove('show');
+  }
+
+  async function convertSchedule(fileId, fileName) {
+    const modal = document.getElementById('convert-modal');
+    document.getElementById('convert-filename').textContent = fileName;
+    document.getElementById('convert-progress').style.display = 'block';
+    document.getElementById('convert-progress').innerHTML = '<span class="spinner"></span>正在讀取並轉換，請稍候...';
+    document.getElementById('convert-error').textContent = '';
+    document.getElementById('convert-done-btns').style.display = 'none';
+    document.getElementById('convert-cancel-btns').style.display = '';
+    modal.classList.add('show');
+
+    try {
+      const res = await fetch(`${WORKER_URL}/convert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Password': password },
+        body: JSON.stringify({ fileName }),
+      });
+      const data = await res.json();
+      document.getElementById('convert-progress').style.display = 'none';
+      if (!res.ok || data.error) {
+        const dbg = data.debug ? '\n' + JSON.stringify(data.debug, null, 2) : '';
+        const el = document.getElementById('convert-error');
+        el.style.whiteSpace = 'pre-wrap';
+        el.textContent = (data.error || '轉檔失敗') + dbg;
+        return;
+      }
+      document.getElementById('convert-sheet-link').href = data.sheetUrl;
+      document.getElementById('convert-done-btns').style.display = '';
+      document.getElementById('convert-cancel-btns').style.display = 'none';
+      document.getElementById('convert-progress').style.display = 'block';
+      document.getElementById('convert-progress').textContent = `完成！共 ${data.rowCount} 筆，頁籤：${data.tabName}`;
+    } catch (e) {
+      document.getElementById('convert-progress').style.display = 'none';
+      document.getElementById('convert-error').textContent = e.message || '轉檔失敗';
+    }
+  }
+
+  function closeConvertModal() {
+    document.getElementById('convert-modal').classList.remove('show');
+  }
+
+  function toggleViewMode() {
+    viewMode = viewMode === 'grid' ? 'list' : 'grid';
+    updateViewToggleBtn();
+    const fid = currentFolderId || currentCategoryId;
+    if (fid) loadFiles(fid);
+  }
+
+  function updateViewToggleBtn() {
+    const btn = document.getElementById('view-toggle-btn');
+    if (btn) btn.textContent = viewMode === 'grid' ? '≡ 清單' : '⊞ 格狀';
+  }
+
+  // ── 工具函式 ─────────────────────────────
+
+  function getFileIcon(mime) {
+    if (!mime) return '📄';
+    if (mime.startsWith('image/')) return '🖼️';
+    if (mime.startsWith('video/')) return '🎬';
+    if (mime.startsWith('audio/')) return '🎵';
+    if (mime.includes('pdf')) return '📕';
+    if (mime.includes('zip') || mime.includes('rar')) return '🗜️';
+    if (mime.includes('spreadsheet') || mime.includes('excel')) return '📊';
+    if (mime.includes('presentation') || mime.includes('powerpoint')) return '📊';
+    if (mime.includes('document') || mime.includes('word')) return '📝';
+    return '📄';
+  }
+
+  function formatSize(bytes) {
+    if (!bytes) return '—';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+    return (bytes / 1073741824).toFixed(2) + ' GB';
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+  }
+</script>
+</body>
+</html>
