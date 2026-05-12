@@ -316,7 +316,7 @@
 <div class="modal-overlay" id="upload-rename-modal">
   <div class="modal">
     <h3>✏️ 確認檔案名稱</h3>
-    <p style="font-size:12px;color:#888;margin-bottom:14px;">可直接修改後再上傳，或按「略過」跳過此檔</p>
+    <p style="font-size:12px;color:#888;margin-bottom:14px;">活動海報格式：yyyy-MM-dd 迦勒團契 or 月佈道 or 出遊<br>安排表格式：yyyy-MM 安排表</p>
     <input type="text" id="upload-rename-input" placeholder="檔案名稱" />
     <div class="error-msg" id="upload-rename-error"></div>
     <div class="modal-btns">
@@ -391,9 +391,9 @@
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
-  document.getElementById('version-footer').textContent = '最後發布時間：2026-04-27 23:45';
+  document.getElementById('version-footer').textContent = '最後發布時間：2026-05-12 00:00';
 
-  let CATEGORIES = []; // 從 Google Sheet 動態載入
+  let CATEGORIES = [];
 
   let password = '';
   let isLoggedIn = false;
@@ -401,29 +401,22 @@
   let currentCategoryName = '';
   let currentFolderId = null;
   let currentFolderName = '';
-  let folderStack = []; // [{id, name}, ...]，從類別往下的資料夾路徑
+  let folderStack = [];
   let sortAsc = true;
   let _renameType = '';
   let _renameId = '';
   let _renameTargets = {};
   let _deleteType = '';
   let _deleteId = '';
-  let viewMode = 'grid'; // 'grid' 或 'list'
-  let _lineUsers = [];   // 發送對象快取
-  let _currentImages = []; // 目前資料夾圖片快取（供 LINE 彈窗使用）
-  let _uploadCount = 0;   // 進行中的上傳數量（beforeunload 用）
+  let viewMode = 'grid';
+  let _lineUsers = [];
+  let _currentImages = [];
+  let _uploadCount = 0;
 
-  // 頁面載入：顯示類別選擇畫面
   window.onload = () => { history.replaceState({ view: 'home' }, ''); loadCategories(); };
 
-  // ── 登入 / 登出 ──────────────────────────
-
   function handleAuthBtn() {
-    if (isLoggedIn) {
-      logout();
-    } else {
-      openLoginModal();
-    }
+    if (isLoggedIn) { logout(); } else { openLoginModal(); }
   }
 
   function openLoginModal() {
@@ -443,24 +436,18 @@
   async function confirmLogin() {
     const input = document.getElementById('login-password').value.trim();
     if (!input) return;
-
-    // 顯示驗證中狀態
     const btn = document.getElementById('login-confirm-btn');
     btn.disabled = true;
     btn.textContent = '驗證中...';
     document.getElementById('login-error').textContent = '';
-
     try {
-      // 呼叫專門的驗證端點
       const res = await fetch(`${WORKER_URL}/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: input })
       });
       const data = await res.json();
-
       if (data.ok) {
-        // 登入成功
         password = input;
         isLoggedIn = true;
         document.getElementById('login-success').textContent = '✓ 登入成功！';
@@ -468,7 +455,6 @@
         document.getElementById('status-badge').className = 'status-badge logged-in';
         document.getElementById('auth-btn').textContent = '登出';
         document.getElementById('auth-btn').className = 'btn-ghost';
-        // 短暫顯示成功訊息後關閉
         setTimeout(() => {
           closeLoginModal();
           updateDriveBtn();
@@ -479,7 +465,6 @@
           }
         }, 800);
       } else {
-        // 登入失敗
         document.getElementById('login-error').textContent = '✗ 密碼錯誤，請再試一次（提示：523...）';
         document.getElementById('status-badge').textContent = '密碼錯誤';
         document.getElementById('status-badge').className = 'status-badge error';
@@ -507,8 +492,6 @@
       if (!noUpload) showLoginHint();
     }
   }
-
-  // ── 類別 ──────────────────────────────────
 
   async function loadCategories() {
     const grid = document.getElementById('category-grid');
@@ -555,7 +538,6 @@
     loadFolders();
     loadFiles(id);
     document.getElementById('sheet-btn').style.display = cat?.linePublish ? '' : 'none';
-    // 類別根目錄也可上傳（除非 noUpload）
     const noUpload = cat?.noUpload;
     if (noUpload) {
       document.getElementById('upload-area').innerHTML = '';
@@ -580,8 +562,6 @@
   }
 
   function goToStackLevel(index) {
-    // index = -1 表示回到類別層（只顯示資料夾，不選中任何子資料夾）
-    // index = 0..n 表示回到 folderStack[index] 那層
     if (index < 0) {
       currentFolderId = null;
       currentFolderName = '';
@@ -598,7 +578,6 @@
       document.getElementById('current-folder-badge').textContent = currentFolderName;
       if (isLoggedIn) showUploadZone(); else showLoginHint();
     } else {
-      // 回到類別根目錄，同樣載入該層檔案
       document.getElementById('current-folder-badge').textContent = currentCategoryName;
       const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
       if (noUpload) {
@@ -633,15 +612,12 @@
     bc.innerHTML = html;
   }
 
-  // ── 資料夾 ────────────────────────────────
-
   async function loadFolders() {
     const browseFolderId = folderStack.length > 0 ? folderStack[folderStack.length - 1].id : currentCategoryId;
     const res = await fetch(`${WORKER_URL}/folders?folderId=${browseFolderId}`);
     const data = await res.json();
     const grid = document.getElementById('folder-grid');
     grid.innerHTML = '';
-
     (data.files || []).sort((a, b) =>
       sortAsc ? a.name.localeCompare(b.name, 'zh-TW') : b.name.localeCompare(a.name, 'zh-TW')
     ).forEach(folder => {
@@ -654,26 +630,17 @@
         renameBtn.className = 'folder-rename-btn';
         renameBtn.textContent = '✏️';
         renameBtn.title = '重新命名';
-        renameBtn.onclick = (e) => {
-          e.stopPropagation();
-          openRenameModal('folder', folder.id, folder.name);
-        };
+        renameBtn.onclick = (e) => { e.stopPropagation(); openRenameModal('folder', folder.id, folder.name); };
         card.appendChild(renameBtn);
-
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'folder-delete-btn';
         deleteBtn.textContent = '🗑️';
         deleteBtn.title = '移至刪除區';
-        deleteBtn.onclick = (e) => {
-          e.stopPropagation();
-          openDeleteModal('folder', folder.id, folder.name);
-        };
+        deleteBtn.onclick = (e) => { e.stopPropagation(); openDeleteModal('folder', folder.id, folder.name); };
         card.appendChild(deleteBtn);
       }
       grid.appendChild(card);
     });
-
-    // 登入後才顯示新增資料夾按鈕
     if (isLoggedIn) {
       const addCard = document.createElement('div');
       addCard.className = 'add-folder-card';
@@ -701,9 +668,7 @@
       showLoginHint();
     }
     if (window.innerWidth <= 768) {
-      setTimeout(() => {
-        document.querySelector('.file-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 300);
+      setTimeout(() => { document.querySelector('.file-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 300);
     }
   }
 
@@ -738,8 +703,6 @@
     loadFolders();
   }
 
-  // ── 檔案列表（公開）─────────────────────
-
   async function loadFiles(folderId) {
     const list = document.getElementById('file-list');
     list.innerHTML = '<div class="empty-files">載入中...</div>';
@@ -756,131 +719,51 @@
       sortAsc ? a.name.localeCompare(b.name, 'zh-TW') : b.name.localeCompare(a.name, 'zh-TW')
     );
     sortedFiles.forEach(f => { _renameTargets[f.id] = f.name; });
-
     const images = sortedFiles.filter(f => f.mimeType && f.mimeType.startsWith('image/'));
     const videos = sortedFiles.filter(f => f.mimeType && f.mimeType.startsWith('video/'));
     const others = sortedFiles.filter(f => !f.mimeType || (!f.mimeType.startsWith('image/') && !f.mimeType.startsWith('video/')));
-
-    // 更新圖片快取（供 LINE 彈窗圖片選單使用）
     _currentImages = images;
-
-    // 判斷是否顯示 LINE 發布按鈕（登入 + 類別設定 linePublish=true）
     const showLine = isLoggedIn && CATEGORIES.find(c => c.id === currentCategoryId)?.linePublish;
-
     let html = '';
-
     if (viewMode === 'list') {
-      // ── 清單模式：所有檔案以列表列出 ──
       html = sortedFiles.map(f => {
         const safeName = f.name.replace(/'/g, "\\'");
-        const isMedia = f.mimeType && (f.mimeType.startsWith('image/') || f.mimeType.startsWith('video/'));
-        const renameBtn = isLoggedIn
-          ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>`
-          : '';
-        const deleteBtn = isLoggedIn
-          ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file','${f.id}','${safeName}')">刪除</button>`
-          : '';
-        const lineBtn = showLine
-          ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>`
-          : '';
-        const summarizeBtn = isLoggedIn && f.mimeType && f.mimeType.startsWith('audio/')
-          ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>`
-          : '';
-        const convertBtn = showLine && /^(\d{4}-\d{2}|\d{6})/.test(f.name) && f.name.includes('安排表')
-          ? `<button class="btn-action btn-action-convert" onclick="convertSchedule('${f.id}','${safeName}')">轉檔</button>`
-          : '';
-        return `
-          <div class="file-row">
-            <div class="file-type-icon">${getFileIcon(f.mimeType)}</div>
-            <div class="file-info">
-              <div class="file-name">${f.name}</div>
-              <div class="file-meta">${formatSize(f.size)}</div>
-            </div>
-            <div class="file-date">${formatDate(f.createdTime)}</div>
-            <div class="file-actions">
-              <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a>
-              <a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>
-              ${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}${convertBtn}
-            </div>
-          </div>
-        `;
+        const renameBtn = isLoggedIn ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>` : '';
+        const deleteBtn = isLoggedIn ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file','${f.id}','${safeName}')">刪除</button>` : '';
+        const lineBtn = showLine ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>` : '';
+        const summarizeBtn = isLoggedIn && f.mimeType && f.mimeType.startsWith('audio/') ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>` : '';
+        const convertBtn = showLine && /^(\d{4}-\d{2}|\d{6})/.test(f.name) && f.name.includes('安排表') ? `<button class="btn-action btn-action-convert" onclick="convertSchedule('${f.id}','${safeName}')">轉檔</button>` : '';
+        return `<div class="file-row"><div class="file-type-icon">${getFileIcon(f.mimeType)}</div><div class="file-info"><div class="file-name">${f.name}</div><div class="file-meta">${formatSize(f.size)}</div></div><div class="file-date">${formatDate(f.createdTime)}</div><div class="file-actions"><a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a><a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}${convertBtn}</div></div>`;
       }).join('');
     } else {
-      // ── 格狀模式：圖片 / 影片以縮圖格呈現，其他以清單呈現 ──
       function renderMediaGrid(items, label, isVideo) {
         let g = `<div class="img-section-label">${label}（${items.length}）</div><div class="img-grid">`;
         g += items.map(f => {
           const safeName = f.name.replace(/'/g, "\\'");
-          const deleteBtn = isLoggedIn
-            ? `<button class="img-delete-btn" onclick="event.preventDefault();openDeleteModal('file','${f.id}','${safeName}')">🗑</button>`
-            : '';
-          const lineBtn = showLine
-            ? `<button class="img-line-btn" onclick="event.preventDefault();openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">LINE</button>`
-            : '';
+          const deleteBtn = isLoggedIn ? `<button class="img-delete-btn" onclick="event.preventDefault();openDeleteModal('file','${f.id}','${safeName}')">🗑</button>` : '';
+          const lineBtn = showLine ? `<button class="img-line-btn" onclick="event.preventDefault();openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">LINE</button>` : '';
           const thumb = `<img class="img-thumb" src="https://drive.google.com/thumbnail?id=${f.id}&sz=w300" alt="${f.name}" loading="lazy">`;
           const playOverlay = isVideo ? `<div class="img-play-overlay"></div>` : '';
-          return `
-            <div class="img-card">
-              <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;">
-                ${thumb}${playOverlay}
-              </a>
-              <div class="img-name">${f.name}</div>
-              ${deleteBtn}${lineBtn}
-            </div>`;
+          return `<div class="img-card"><a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;">${thumb}${playOverlay}</a><div class="img-name">${f.name}</div>${deleteBtn}${lineBtn}</div>`;
         }).join('');
         g += `</div>`;
         return g;
       }
-
-      if (images.length > 0) {
-        html += renderMediaGrid(images, '圖片', false);
-        if (videos.length > 0 || others.length > 0) html += `<hr class="img-section-divider">`;
-      }
-      if (videos.length > 0) {
-        html += renderMediaGrid(videos, '影片', true);
-        if (others.length > 0) html += `<hr class="img-section-divider">`;
-      }
-
+      if (images.length > 0) { html += renderMediaGrid(images, '圖片', false); if (videos.length > 0 || others.length > 0) html += `<hr class="img-section-divider">`; }
+      if (videos.length > 0) { html += renderMediaGrid(videos, '影片', true); if (others.length > 0) html += `<hr class="img-section-divider">`; }
       html += others.map(f => {
         const safeName = f.name.replace(/'/g, "\\'");
-        const renameBtn = isLoggedIn
-          ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>`
-          : '';
-        const deleteBtn = isLoggedIn
-          ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file', '${f.id}')">刪除</button>`
-          : '';
-        const lineBtn = showLine
-          ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>`
-          : '';
-        const summarizeBtn = isLoggedIn && f.mimeType && f.mimeType.startsWith('audio/')
-          ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>`
-          : '';
-        const convertBtn = showLine && /^(\d{4}-\d{2}|\d{6})/.test(f.name) && f.name.includes('安排表')
-          ? `<button class="btn-action btn-action-convert" onclick="convertSchedule('${f.id}','${safeName}')">轉檔</button>`
-          : '';
-        return `
-          <div class="file-row">
-            <div class="file-type-icon">${getFileIcon(f.mimeType)}</div>
-            <div class="file-info">
-              <div class="file-name">${f.name}</div>
-              <div class="file-meta">${formatSize(f.size)}</div>
-            </div>
-            <div class="file-date">${formatDate(f.createdTime)}</div>
-            <div class="file-actions">
-              <a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a>
-              <a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>
-              ${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}${convertBtn}
-            </div>
-          </div>
-        `;
+        const renameBtn = isLoggedIn ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>` : '';
+        const deleteBtn = isLoggedIn ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file', '${f.id}')">刪除</button>` : '';
+        const lineBtn = showLine ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>` : '';
+        const summarizeBtn = isLoggedIn && f.mimeType && f.mimeType.startsWith('audio/') ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>` : '';
+        const convertBtn = showLine && /^(\d{4}-\d{2}|\d{6})/.test(f.name) && f.name.includes('安排表') ? `<button class="btn-action btn-action-convert" onclick="convertSchedule('${f.id}','${safeName}')">轉檔</button>` : '';
+        return `<div class="file-row"><div class="file-type-icon">${getFileIcon(f.mimeType)}</div><div class="file-info"><div class="file-name">${f.name}</div><div class="file-meta">${formatSize(f.size)}</div></div><div class="file-date">${formatDate(f.createdTime)}</div><div class="file-actions"><a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a><a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}${convertBtn}</div></div>`;
       }).join('');
     }
-
     list.innerHTML = html || '<div class="empty-files">這個資料夾還沒有檔案</div>';
     document.getElementById('current-folder-badge').textContent = `${data.files.length} 個檔案`;
   }
-
-  // ── 上傳功能（需要登入）─────────────────
 
   function showUploadZone() {
     const area = document.getElementById('upload-area');
@@ -899,14 +782,10 @@
     const zone = document.getElementById('upload-zone');
     zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
     zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-    zone.addEventListener('drop', e => {
-      e.preventDefault();
-      zone.classList.remove('dragover');
-      handleFiles(e.dataTransfer.files);
-    });
+    zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
   }
 
-  const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
+  const MAX_FILE_SIZE = 100 * 1024 * 1024;
 
   async function handleFiles(files) {
     const oversized = Array.from(files).filter(f => f.size > MAX_FILE_SIZE);
@@ -916,13 +795,12 @@
     }
     const valid = Array.from(files).filter(f => f.size <= MAX_FILE_SIZE);
     if (valid.length === 0) return;
-
     const showRename = !!CATEGORIES.find(c => c.id === currentCategoryId)?.linePublish;
     for (const file of valid) {
       let fileName = file.name;
       if (showRename) {
         const newName = await promptRenameBeforeUpload(file);
-        if (newName === null) continue; // 略過此檔
+        if (newName === null) continue;
         fileName = newName;
       }
       await uploadFile(file, fileName);
@@ -938,11 +816,7 @@
       document.getElementById('upload-rename-input').value = file.name;
       document.getElementById('upload-rename-error').textContent = '';
       document.getElementById('upload-rename-modal').classList.add('show');
-      setTimeout(() => {
-        const input = document.getElementById('upload-rename-input');
-        input.focus();
-        input.select();
-      }, 80);
+      setTimeout(() => { const input = document.getElementById('upload-rename-input'); input.focus(); input.select(); }, 80);
     });
   }
 
@@ -958,57 +832,41 @@
     if (_uploadRenameResolve) { _uploadRenameResolve(null); _uploadRenameResolve = null; }
   }
 
-async function uploadFile(file, customName) {
-  const fileName = customName || file.name;
-  _uploadCount++;
-  const itemId = 'upload-' + Date.now() + Math.random();
-  const list = document.getElementById('upload-list');
-  const item = document.createElement('div');
-  item.className = 'upload-item';
-  item.id = itemId;
-  item.innerHTML = `
-    <div class="upload-item-header">
-      <div class="upload-item-name">${fileName}</div>
-      <div class="upload-item-status" id="${itemId}-status">上傳中...</div>
-    </div>
-    <div class="progress-bar">
-      <div class="progress-fill" id="${itemId}-bar" style="width:5%"></div>
-    </div>
-  `;
-  list.prepend(item);
-
-  try {
-    const res = await fetch(`${WORKER_URL}/upload`, {
-      method: 'POST',
-      headers: {
-        'X-Password': password,
-        'Content-Type': file.type || 'application/octet-stream',
-        'X-File-Meta': encodeURIComponent(JSON.stringify({
-          fileName,
-          mimeType: file.type || 'application/octet-stream',
-          folderId: currentFolderId || currentCategoryId
-        }))
-      },
-      body: file,
-    });
-
-    if (res.ok) {
-      document.getElementById(`${itemId}-bar`).style.width = '100%';
-      document.getElementById(`${itemId}-bar`).className = 'progress-fill done';
-      document.getElementById(`${itemId}-status`).textContent = '完成 ✓';
-      document.getElementById(`${itemId}-status`).className = 'upload-item-status done';
-    } else {
-      throw new Error('上傳失敗');
+  async function uploadFile(file, customName) {
+    const fileName = customName || file.name;
+    _uploadCount++;
+    const itemId = 'upload-' + Date.now() + Math.random();
+    const list = document.getElementById('upload-list');
+    const item = document.createElement('div');
+    item.className = 'upload-item';
+    item.id = itemId;
+    item.innerHTML = `<div class="upload-item-header"><div class="upload-item-name">${fileName}</div><div class="upload-item-status" id="${itemId}-status">上傳中...</div></div><div class="progress-bar"><div class="progress-fill" id="${itemId}-bar" style="width:5%"></div></div>`;
+    list.prepend(item);
+    try {
+      const res = await fetch(`${WORKER_URL}/upload`, {
+        method: 'POST',
+        headers: {
+          'X-Password': password,
+          'Content-Type': file.type || 'application/octet-stream',
+          'X-File-Meta': encodeURIComponent(JSON.stringify({ fileName, mimeType: file.type || 'application/octet-stream', folderId: currentFolderId || currentCategoryId }))
+        },
+        body: file,
+      });
+      if (res.ok) {
+        document.getElementById(`${itemId}-bar`).style.width = '100%';
+        document.getElementById(`${itemId}-bar`).className = 'progress-fill done';
+        document.getElementById(`${itemId}-status`).textContent = '完成 ✓';
+        document.getElementById(`${itemId}-status`).className = 'upload-item-status done';
+      } else {
+        throw new Error('上傳失敗');
+      }
+    } catch (err) {
+      document.getElementById(`${itemId}-status`).textContent = '上傳失敗';
+      document.getElementById(`${itemId}-status`).className = 'upload-item-status error';
+    } finally {
+      _uploadCount--;
     }
-  } catch (err) {
-    document.getElementById(`${itemId}-status`).textContent = '上傳失敗';
-    document.getElementById(`${itemId}-status`).className = 'upload-item-status error';
-  } finally {
-    _uploadCount--;
   }
-}
-
-  // ── 鍵盤快捷鍵 ───────────────────────────
 
   document.getElementById('upload-rename-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') confirmUploadRename();
@@ -1033,106 +891,62 @@ async function uploadFile(file, customName) {
     }
   });
 
-  // ── 瀏覽器上一頁 / 防止上傳中離頁 ──────────
   window.addEventListener('popstate', e => {
     const state = e.state;
     if (!state || state.view === 'home') {
-      currentCategoryId = null;
-      currentCategoryName = '';
-      currentFolderId = null;
-      currentFolderName = '';
-      folderStack = [];
+      currentCategoryId = null; currentCategoryName = ''; currentFolderId = null; currentFolderName = ''; folderStack = [];
       document.getElementById('folder-view').style.display = 'none';
       document.getElementById('category-view').style.display = 'block';
       document.getElementById('sheet-btn').style.display = 'none';
       updateDriveBtn();
     } else if (state.view === 'category') {
-      currentCategoryId = state.id;
-      currentCategoryName = state.name;
-      currentFolderId = null;
-      currentFolderName = '';
-      folderStack = [];
+      currentCategoryId = state.id; currentCategoryName = state.name; currentFolderId = null; currentFolderName = ''; folderStack = [];
       const cat = CATEGORIES.find(c => c.id === state.id);
-      sortAsc = (cat?.sort !== 'desc');
-      updateSortBtn();
+      sortAsc = (cat?.sort !== 'desc'); updateSortBtn();
       document.getElementById('category-view').style.display = 'none';
       document.getElementById('folder-view').style.display = 'block';
       document.getElementById('current-folder-badge').textContent = state.name;
       document.getElementById('upload-list').innerHTML = '';
-      viewMode = 'grid';
-      updateViewToggleBtn();
-      renderBreadcrumb();
-      updateDriveBtn();
-      loadFolders();
-      loadFiles(state.id);
+      viewMode = 'grid'; updateViewToggleBtn(); renderBreadcrumb(); updateDriveBtn(); loadFolders(); loadFiles(state.id);
       document.getElementById('sheet-btn').style.display = cat?.linePublish ? '' : 'none';
       const noUpload1 = cat?.noUpload;
-      if (noUpload1) {
-        document.getElementById('upload-area').innerHTML = '';
-      } else if (isLoggedIn) {
-        showUploadZone();
-      } else {
-        showLoginHint();
-      }
+      if (noUpload1) { document.getElementById('upload-area').innerHTML = ''; } else if (isLoggedIn) { showUploadZone(); } else { showLoginHint(); }
     } else if (state.view === 'folder') {
-      currentCategoryId = state.categoryId;
-      currentCategoryName = state.categoryName;
+      currentCategoryId = state.categoryId; currentCategoryName = state.categoryName;
       folderStack = state.stack;
       currentFolderId = state.stack[state.stack.length - 1].id;
       currentFolderName = state.stack[state.stack.length - 1].name;
       document.getElementById('current-folder-badge').textContent = currentFolderName;
       document.getElementById('upload-list').innerHTML = '';
-      renderBreadcrumb();
-      updateDriveBtn();
-      loadFolders();
-      loadFiles(currentFolderId);
+      renderBreadcrumb(); updateDriveBtn(); loadFolders(); loadFiles(currentFolderId);
       const cat2 = CATEGORIES.find(c => c.id === currentCategoryId);
       document.getElementById('sheet-btn').style.display = cat2?.linePublish ? '' : 'none';
       const noUpload2 = cat2?.noUpload;
-      if (noUpload2) {
-        document.getElementById('upload-area').innerHTML = '';
-      } else if (isLoggedIn) {
-        showUploadZone();
-      } else {
-        showLoginHint();
-      }
+      if (noUpload2) { document.getElementById('upload-area').innerHTML = ''; } else if (isLoggedIn) { showUploadZone(); } else { showLoginHint(); }
     }
   });
 
-  window.addEventListener('beforeunload', e => {
-    if (_uploadCount > 0) e.preventDefault();
-  });
-
-  // ── 重新命名 ──────────────────────────────
+  window.addEventListener('beforeunload', e => { if (_uploadCount > 0) e.preventDefault(); });
 
   function openRenameModal(type, id, name) {
-    _renameType = type;
-    _renameId = id;
+    _renameType = type; _renameId = id;
     const currentName = name !== undefined ? name : (_renameTargets[id] || '');
-    document.getElementById('rename-modal-desc').textContent =
-      type === 'folder' ? '輸入資料夾新名稱' : '輸入檔案新名稱';
+    document.getElementById('rename-modal-desc').textContent = type === 'folder' ? '輸入資料夾新名稱' : '輸入檔案新名稱';
     document.getElementById('rename-name-input').value = currentName;
     document.getElementById('rename-error').textContent = '';
     document.getElementById('rename-confirm-btn').disabled = false;
     document.getElementById('rename-confirm-btn').textContent = '確認';
     document.getElementById('rename-modal').classList.add('show');
-    setTimeout(() => {
-      const input = document.getElementById('rename-name-input');
-      input.focus();
-      input.select();
-    }, 100);
+    setTimeout(() => { const input = document.getElementById('rename-name-input'); input.focus(); input.select(); }, 100);
   }
 
-  function closeRenameModal() {
-    document.getElementById('rename-modal').classList.remove('show');
-  }
+  function closeRenameModal() { document.getElementById('rename-modal').classList.remove('show'); }
 
   async function confirmRename() {
     const newName = document.getElementById('rename-name-input').value.trim();
     if (!newName) return;
     const btn = document.getElementById('rename-confirm-btn');
-    btn.disabled = true;
-    btn.textContent = '處理中...';
+    btn.disabled = true; btn.textContent = '處理中...';
     document.getElementById('rename-error').textContent = '';
     try {
       const res = await fetch(`${WORKER_URL}/rename`, {
@@ -1143,46 +957,33 @@ async function uploadFile(file, customName) {
       const data = await res.json();
       if (res.ok) {
         closeRenameModal();
-        if (_renameType === 'folder') {
-          loadFolders();
-        } else {
-          loadFiles(currentFolderId || currentCategoryId);
-        }
+        if (_renameType === 'folder') { loadFolders(); } else { loadFiles(currentFolderId || currentCategoryId); }
       } else {
         document.getElementById('rename-error').textContent = data.error || '重新命名失敗';
-        btn.disabled = false;
-        btn.textContent = '確認';
+        btn.disabled = false; btn.textContent = '確認';
       }
     } catch (err) {
       document.getElementById('rename-error').textContent = '網路錯誤，請稍後再試';
-      btn.disabled = false;
-      btn.textContent = '確認';
+      btn.disabled = false; btn.textContent = '確認';
     }
   }
 
-  // ── 刪除（移至刪除區）────────────────────
-
   function openDeleteModal(type, id, name) {
-    _deleteType = type;
-    _deleteId = id;
+    _deleteType = type; _deleteId = id;
     name = name || _renameTargets[id] || id;
     const typeLabel = type === 'folder' ? '資料夾' : '檔案';
-    document.getElementById('delete-modal-desc').textContent =
-      `確定要將${typeLabel}「${name}」移至刪除區嗎？`;
+    document.getElementById('delete-modal-desc').textContent = `確定要將${typeLabel}「${name}」移至刪除區嗎？`;
     document.getElementById('delete-error').textContent = '';
     document.getElementById('delete-confirm-btn').disabled = false;
     document.getElementById('delete-confirm-btn').textContent = '確認移除';
     document.getElementById('delete-modal').classList.add('show');
   }
 
-  function closeDeleteModal() {
-    document.getElementById('delete-modal').classList.remove('show');
-  }
+  function closeDeleteModal() { document.getElementById('delete-modal').classList.remove('show'); }
 
   async function confirmDeleteItem() {
     const btn = document.getElementById('delete-confirm-btn');
-    btn.disabled = true;
-    btn.textContent = '處理中...';
+    btn.disabled = true; btn.textContent = '處理中...';
     document.getElementById('delete-error').textContent = '';
     const fromParentId = _deleteType === 'folder'
       ? (folderStack.length > 0 ? folderStack[folderStack.length - 1].id : currentCategoryId)
@@ -1196,31 +997,21 @@ async function uploadFile(file, customName) {
       const data = await res.json();
       if (res.ok) {
         closeDeleteModal();
-        if (_deleteType === 'folder') {
-          loadFolders();
-        } else {
-          loadFiles(currentFolderId || currentCategoryId);
-        }
+        if (_deleteType === 'folder') { loadFolders(); } else { loadFiles(currentFolderId || currentCategoryId); }
       } else {
         document.getElementById('delete-error').textContent = data.error || '移動失敗';
-        btn.disabled = false;
-        btn.textContent = '確認移除';
+        btn.disabled = false; btn.textContent = '確認移除';
       }
     } catch (err) {
       document.getElementById('delete-error').textContent = '網路錯誤，請稍後再試';
-      btn.disabled = false;
-      btn.textContent = '確認移除';
+      btn.disabled = false; btn.textContent = '確認移除';
     }
   }
-
-  // ── LINE 排程發送 ─────────────────────────
 
   async function openLineModal(fileId, fileName, mimeType) {
     document.getElementById('line-error').textContent = '';
     document.getElementById('line-confirm-btn').disabled = false;
     document.getElementById('line-confirm-btn').textContent = '確認加入排程';
-
-    // 初始化時間選擇器（只建一次）
     const timeSelect = document.getElementById('line-time');
     if (timeSelect.options.length === 0) {
       for (let h = 0; h < 24; h++) {
@@ -1232,57 +1023,35 @@ async function uploadFile(file, customName) {
         }
       }
     }
-    // 預設日期 = 今天，時間 = 09:00
     const now = new Date();
-    document.getElementById('line-date').value =
-      `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    document.getElementById('line-date').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
     timeSelect.value = '09:00';
-
-    // 載入發送對象（每次都重新嘗試，直到成功為止）
     let usersError = '';
     try {
       const res = await fetch(`${WORKER_URL}/users`);
       const d = await res.json();
-      if (d.error) {
-        usersError = d.error;
-        console.error('[LINE Modal] 讀取 Users 失敗:', d.error);
-      }
+      if (d.error) { usersError = d.error; }
       _lineUsers = d.users || [];
-    } catch (e) {
-      usersError = e.message;
-      console.error('[LINE Modal] fetch /users 例外:', e);
-      _lineUsers = [];
-    }
+    } catch (e) { usersError = e.message; _lineUsers = []; }
     const targetSel = document.getElementById('line-target');
     const allOption = `<option value="ALL" style="color:#e24b4a;font-weight:600;">👥 全部人</option>`;
     if (_lineUsers.length) {
-      targetSel.innerHTML = allOption + _lineUsers.map(u =>
-        `<option value="${u.userId}">${u.userName}</option>`
-      ).join('');
+      targetSel.innerHTML = allOption + _lineUsers.map(u => `<option value="${u.userId}">${u.userName}</option>`).join('');
     } else {
       targetSel.innerHTML = allOption + `<option value="">${usersError ? '讀取失敗：' + usersError : '（Users 頁籤無資料）'}</option>`;
     }
-
-    // 建立圖片下拉選單（從 _currentImages）
     const imgOpts = _currentImages.length
-      ? _currentImages.map(f =>
-          `<option value="https://lh3.googleusercontent.com/d/${f.id}" ${f.id === fileId ? 'selected' : ''}>${f.name}</option>`
-        ).join('')
+      ? _currentImages.map(f => `<option value="https://lh3.googleusercontent.com/d/${f.id}" ${f.id === fileId ? 'selected' : ''}>${f.name}</option>`).join('')
       : '<option value="">（此資料夾無圖片）</option>';
     document.getElementById('line-image-select').innerHTML = imgOpts;
     document.getElementById('line-flex-image').innerHTML = imgOpts;
-
-    // 預設訊息類型：圖片檔自動選「單張大圖」，其他選「純文字」
     const isImg = mimeType && mimeType.startsWith('image/');
     document.getElementById('line-type').value = isImg ? 'image' : 'text';
     switchLineType();
-
     document.getElementById('line-modal').classList.add('show');
   }
 
-  function closeLineModal() {
-    document.getElementById('line-modal').classList.remove('show');
-  }
+  function closeLineModal() { document.getElementById('line-modal').classList.remove('show'); }
 
   function switchLineType() {
     const t = document.getElementById('line-type').value;
@@ -1295,20 +1064,17 @@ async function uploadFile(file, customName) {
     const btn = document.getElementById('line-confirm-btn');
     const errEl = document.getElementById('line-error');
     errEl.textContent = '';
-
-    const type     = document.getElementById('line-type').value;
-    const date     = document.getElementById('line-date').value;
-    const time     = document.getElementById('line-time').value;
+    const type = document.getElementById('line-type').value;
+    const date = document.getElementById('line-date').value;
+    const time = document.getElementById('line-time').value;
     const targetEl = document.getElementById('line-target');
     const targetId = targetEl.value;
     const targetName = targetEl.options[targetEl.selectedIndex]?.text || '';
-
     if (!date || !time) { errEl.textContent = '請選擇發送時間'; return; }
-    if (!targetId)      { errEl.textContent = '請選擇發送對象'; return; }
+    if (!targetId) { errEl.textContent = '請選擇發送對象'; return; }
     if (targetId === 'ALL') {
       if (!confirm('⚠️⚠️⚠️ 即將發送給「全部人」！！！\n\n請再次確認，此訊息將廣播給所有成員。\n\n確定要繼續嗎？')) return;
     }
-
     let content = '', title = '', subBtn = '';
     if (type === 'text') {
       content = document.getElementById('line-text').value.trim();
@@ -1317,18 +1083,15 @@ async function uploadFile(file, customName) {
       content = document.getElementById('line-image-select').value;
       if (!content) { errEl.textContent = '請選擇圖片'; return; }
     } else {
-      content  = document.getElementById('line-flex-image').value;
-      title    = document.getElementById('line-flex-title').value.trim();
-      const desc     = document.getElementById('line-flex-desc').value.trim();
+      content = document.getElementById('line-flex-image').value;
+      title = document.getElementById('line-flex-title').value.trim();
+      const desc = document.getElementById('line-flex-desc').value.trim();
       const btnLabel = document.getElementById('line-flex-btn-label').value.trim();
-      const btnUrl   = document.getElementById('line-flex-btn-url').value.trim();
+      const btnUrl = document.getElementById('line-flex-btn-url').value.trim();
       subBtn = `${desc}｜${btnLabel}｜${btnUrl}`;
       if (!content) { errEl.textContent = '請選擇封面圖片'; return; }
     }
-
-    btn.disabled = true;
-    btn.textContent = '送出中...';
-
+    btn.disabled = true; btn.textContent = '送出中...';
     try {
       const res = await fetch(`${WORKER_URL}/schedule`, {
         method: 'POST',
@@ -1336,32 +1099,17 @@ async function uploadFile(file, customName) {
         body: JSON.stringify({ time: `${date} ${time}`, targetId, targetName, type, content, title, subBtn })
       });
       const d = await res.json();
-      if (res.ok) {
-        closeLineModal();
-        alert('✅ 已加入 LINE 排程！');
-      } else {
-        errEl.textContent = d.error || '送出失敗，請稍後再試';
-        btn.disabled = false;
-        btn.textContent = '確認加入排程';
-      }
+      if (res.ok) { closeLineModal(); alert('✅ 已加入 LINE 排程！'); }
+      else { errEl.textContent = d.error || '送出失敗，請稍後再試'; btn.disabled = false; btn.textContent = '確認加入排程'; }
     } catch (e) {
-      errEl.textContent = '網路錯誤，請稍後再試';
-      btn.disabled = false;
-      btn.textContent = '確認加入排程';
+      errEl.textContent = '網路錯誤，請稍後再試'; btn.disabled = false; btn.textContent = '確認加入排程';
     }
   }
 
-  // ── 外部瀏覽器 ───────────────────────────
-
   function openExternal(url) {
     if (/Line\//i.test(navigator.userAgent || '')) {
-      try {
-        const u = new URL(url);
-        u.searchParams.set('openExternalBrowser', '1');
-        url = u.toString();
-      } catch (e) {
-        url += (url.includes('?') ? '&' : '?') + 'openExternalBrowser=1';
-      }
+      try { const u = new URL(url); u.searchParams.set('openExternalBrowser', '1'); url = u.toString(); }
+      catch (e) { url += (url.includes('?') ? '&' : '?') + 'openExternalBrowser=1'; }
     }
     window.open(url, '_blank', 'noopener,noreferrer');
   }
@@ -1369,20 +1117,12 @@ async function uploadFile(file, customName) {
   function updateDriveBtn() {
     const catBtn = document.getElementById('category-drive-btn');
     const folderBtn = document.getElementById('folder-drive-btn');
-    if (!isLoggedIn) {
-      if (catBtn) catBtn.innerHTML = '';
-      if (folderBtn) folderBtn.innerHTML = '';
-      return;
-    }
-    const url = currentCategoryId
-      ? `https://drive.google.com/drive/folders/${currentCategoryId}`
-      : 'https://drive.google.com';
+    if (!isLoggedIn) { if (catBtn) catBtn.innerHTML = ''; if (folderBtn) folderBtn.innerHTML = ''; return; }
+    const url = currentCategoryId ? `https://drive.google.com/drive/folders/${currentCategoryId}` : 'https://drive.google.com';
     const btnHtml = `<button class="btn-drive" title="在 Google Drive 中開啟" onclick="openExternal('${url}')">☁️</button>`;
     if (catBtn) catBtn.innerHTML = btnHtml;
     if (folderBtn) folderBtn.innerHTML = btnHtml;
   }
-
-  // ── 排序 ─────────────────────────────────
 
   function updateSortBtn() {
     const btn = document.getElementById('sort-btn');
@@ -1390,13 +1130,9 @@ async function uploadFile(file, customName) {
   }
 
   function toggleSort() {
-    sortAsc = !sortAsc;
-    updateSortBtn();
-    loadFolders();
+    sortAsc = !sortAsc; updateSortBtn(); loadFolders();
     if (currentFolderId || currentCategoryId) loadFiles(currentFolderId || currentCategoryId);
   }
-
-  // ── 分享圖庫連結 ──────────────────────────
 
   function copyGalleryLink() {
     const id = currentFolderId || currentCategoryId;
@@ -1406,15 +1142,10 @@ async function uploadFile(file, customName) {
     const url = `${base}gallery.html?folderId=${id}&name=${encodeURIComponent(name)}`;
     navigator.clipboard.writeText(url).then(() => {
       const btn = document.getElementById('share-gallery-btn');
-      btn.textContent = '✓ 已複製';
-      btn.style.color = '#3B6D11';
+      btn.textContent = '✓ 已複製'; btn.style.color = '#3B6D11';
       setTimeout(() => { btn.textContent = '🔗 分享'; btn.style.color = ''; }, 2000);
     });
   }
-
-  // ── 檢視切換 ─────────────────────────────
-
-  // ── 重點整理 ──────────────────────────────
 
   async function openSummarizeModal(fileId, fileName) {
     document.getElementById('summarize-filename').textContent = fileName;
@@ -1423,7 +1154,6 @@ async function uploadFile(file, customName) {
     document.getElementById('summarize-done-btns').style.display = 'none';
     document.getElementById('summarize-cancel-btns').style.display = '';
     document.getElementById('summarize-modal').classList.add('show');
-
     try {
       const res = await fetch(`${WORKER_URL}/summarize`, {
         method: 'POST',
@@ -1437,9 +1167,7 @@ async function uploadFile(file, customName) {
         document.getElementById('summarize-notion-link').href = data.notionUrl;
         document.getElementById('summarize-done-btns').style.display = '';
         document.getElementById('summarize-cancel-btns').style.display = 'none';
-      } else {
-        throw new Error(data.error || '處理失敗');
-      }
+      } else { throw new Error(data.error || '處理失敗'); }
     } catch (e) {
       document.getElementById('summarize-progress').textContent = '';
       const msg = (e.name === 'TimeoutError' || e.name === 'AbortError')
@@ -1449,9 +1177,7 @@ async function uploadFile(file, customName) {
     }
   }
 
-  function closeSummarizeModal() {
-    document.getElementById('summarize-modal').classList.remove('show');
-  }
+  function closeSummarizeModal() { document.getElementById('summarize-modal').classList.remove('show'); }
 
   async function convertSchedule(fileId, fileName) {
     const modal = document.getElementById('convert-modal');
@@ -1462,7 +1188,6 @@ async function uploadFile(file, customName) {
     document.getElementById('convert-done-btns').style.display = 'none';
     document.getElementById('convert-cancel-btns').style.display = '';
     modal.classList.add('show');
-
     try {
       const res = await fetch(`${WORKER_URL}/convert`, {
         method: 'POST',
@@ -1489,9 +1214,7 @@ async function uploadFile(file, customName) {
     }
   }
 
-  function closeConvertModal() {
-    document.getElementById('convert-modal').classList.remove('show');
-  }
+  function closeConvertModal() { document.getElementById('convert-modal').classList.remove('show'); }
 
   function toggleViewMode() {
     viewMode = viewMode === 'grid' ? 'list' : 'grid';
@@ -1504,8 +1227,6 @@ async function uploadFile(file, customName) {
     const btn = document.getElementById('view-toggle-btn');
     if (btn) btn.textContent = viewMode === 'grid' ? '≡ 清單' : '⊞ 格狀';
   }
-
-  // ── 工具函式 ─────────────────────────────
 
   function getFileIcon(mime) {
     if (!mime) return '📄';
