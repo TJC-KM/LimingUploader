@@ -451,6 +451,17 @@ async function getCategories(token, headers) {
   });
 }
 
+// 從 Config 頁籤讀取指定 key 的設定值（A=key, B=value）
+async function getConfigValue(token, key) {
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Config!A:B`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const data = await res.json();
+  const row = (data.values || []).slice(1).find(r => r[0] === key);
+  return row?.[1] || null;
+}
+
 // 從 Google Sheet 的 Users 頁籤讀取發送對象清單
 async function getUsers(token, headers) {
   const res = await fetch(
@@ -638,11 +649,11 @@ async function readXlsxAsSheet(token, fileId, headers) {
   let sharedStrings = [];
   if (ssEntry) {
     const ssXml = await decompress(ssEntry);
-    const matches = [...ssXml.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)];
+    const matches = [...ssXml.matchAll(/<t(?:\s[^>]*)?>[\s\S]*?<\/t>/g)];
     // 按 <si> 分組
     const siParts = ssXml.split('<si>');
     for (let si of siParts.slice(1)) {
-      const ts = [...si.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map(m => m[1]);
+      const ts = [...si.matchAll(/<t(?:\s[^>]*)?>[\s\S]*?<\/t>/g)].map(m => m[1]);
       sharedStrings.push(ts.join(''));
     }
   }
@@ -737,41 +748,9 @@ async function summarizeAudio(driveToken, env, fileId, fileName, headers) {
   }
   if (state !== 'ACTIVE') throw new Error('Gemini 檔案處理逾時，請稍後再試');
 
-  // 4. 呼叫 Gemini 整理重點
-  const prompt = `
-這是一段基督教會聚會的錄音，請以繁體中文整理成一份「聚會講義」：
-
-# <h2>今日主題：....<h2>
-
-📍 第一大點標題
-📖 核心經文：[書名 章:節]
-💡 教導重點：
-- [內容：請以條列式整理該段落核心教導，每點約 50-100 字]
-- [內容：...]
-
-📍 第二大點標題
-📖 核心經文：[書名 章:節]
-💡 教導重點：
-- [內容：...]
-
-（請依據錄音長度，整理 3–5 個大點）
-
----
-
-# 📖 聖經經文複習
-列出音頻中提及的所有聖經經文，格式：
-- 書名 章:節 ── 完整經文(和合本-神版)
-
----
-
-# ⏱️ 整理日期：[今天日期]
-
-# 📝 注意事項
-- 格式限制：嚴格禁止使用雙星號（**），確保匯入 Notion 後畫面簡潔。
-- 人名規範：只用姓氏加「弟兄」或「姊妹」（如：陳弟兄、王姊妹），不呈現全名。
-- 聖經版本：和合本-神版，禁止使用"上帝"。
-- 真實性：只整理音頻實際提到的內容，勿自行補充。
-  `;
+  // 4. 呼叫 Gemini 整理重點（prompt 從 Config 頁籤讀取）
+  const prompt = await getConfigValue(driveToken, 'summarize_prompt');
+  if (!prompt) throw new Error('未在 Config 頁籤設定 summarize_prompt，請至 Google Sheet 新增');
 
   const genRes = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_KEY}`,
@@ -904,7 +883,7 @@ async function convertSchedule(token, env, fileName, headers) {
     rawData = await readAllSheetValues(token, tempSheet.id);
 
     // 5. 用 Gemini 解析結構化資料
-    const geminiResult = await parseScheduleWithGemini(env, rawData, year, month);
+    const geminiResult = await parseScheduleWithGemini(token, env, rawData, year, month);
     scheduleRows = geminiResult.rows;
     if (scheduleRows.length === 0) {
       return new Response(JSON.stringify({
@@ -998,28 +977,15 @@ async function driveDeleteFile(token, fileId) {
 }
 
 // 用 Gemini 解析安排表，回傳 [{ date, person, job }]
-async function parseScheduleWithGemini(env, rawData, year, month) {
+async function parseScheduleWithGemini(token, env, rawData, year, month) {
   const tableStr = rawData.map(row => row.join('\t')).join('\n');
-  const prompt = `你是台灣教會聚會安排表資料整理助手。
-以下是一份${year}年${parseInt(month)}月聚會安排表，從 Excel 讀出（Tab 分隔，可能含合併儲存格殘留的空值）。
 
-請將所有人員工作安排整理成 JSON 陣列，每筆格式為：
-{ "date": "${year}/${parseInt(month)}/<日>", "person": "<姓名>", "job": "<工作名稱>" }
-
-規則：
-1. 同一日期可能分多行（合併儲存格），請對應正確日期
-2. 工作欄位為「-」或空白則忽略
-3. 需要轉入的工作欄位（依序）：
-   領會、翻譯、領詩、司琴、接待(1F大廳)、接待(2F會堂)、視聽(Meet)、時時禱告   
-   不需轉入的欄位：車管、值日
-4. 其他工作 聚會類型領會+多位分享，如(唱詩禱告會領會、唱詩禱告會分享、真理分享會領會、真理分享會分享*2、見證會領會、見證會分享、查經聚會領會、查經帶組*3)
-5. 其他工作 安息日讀經、安息日午餐悟性禱告、愛餐清潔
-6. 不論有沒有聚會，原則上每天都有時時禱告
-7. 姓名保留原始文字，不要增刪
-8. 只輸出 JSON 陣列，不要任何說明文字或 markdown 標記
-
-原始資料：
-${tableStr}`;
+  // prompt 從 Config 頁籤讀取，{{year}} / {{month}} 為佔位符
+  let promptTemplate = await getConfigValue(token, 'convert_prompt');
+  if (!promptTemplate) throw new Error('未在 Config 頁籤設定 convert_prompt，請至 Google Sheet 新增');
+  const prompt = promptTemplate
+    .replaceAll('{{year}}', year)
+    .replaceAll('{{month}}', parseInt(month)) + `\n\n原始資料：\n${tableStr}`;
 
   let data;
   for (let attempt = 1; attempt <= 3; attempt++) {
