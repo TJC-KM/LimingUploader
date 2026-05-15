@@ -414,12 +414,13 @@
   let _uploadCount = 0;
 
   window.onload = async () => {
-    history.replaceState({ view: 'home' }, '', location.pathname);
     await loadCategories();
     const hash = location.hash.slice(1);
     if (hash) {
       const cat = CATEGORIES.find(c => c.name === decodeURIComponent(hash));
       if (cat && cat.type !== 'link') selectCategory(cat.id, cat.name);
+    } else {
+      history.replaceState({ view: 'home' }, '', location.pathname);
     }
   };
 
