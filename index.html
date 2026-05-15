@@ -416,7 +416,7 @@
   window.onload = async () => {
     history.replaceState({ view: 'home' }, '', location.pathname);
     await loadCategories();
-    const hash = decodeURIComponent(location.hash.slice(1));
+    const hash = location.hash.slice(1);
     if (hash) {
       const cat = CATEGORIES.find(c => c.name === hash);
       if (cat && cat.type !== 'link') selectCategory(cat.id, cat.name);
@@ -554,7 +554,7 @@
     } else {
       showLoginHint();
     }
-    history.pushState({ view: 'category', id, name }, '', '#' + encodeURIComponent(name));
+    history.pushState({ view: 'category', id, name }, '', '#' + name);
   }
 
   function goHome() {
@@ -598,9 +598,9 @@
       loadFiles(currentCategoryId);
     }
     if (index < 0) {
-      history.pushState({ view: 'category', id: currentCategoryId, name: currentCategoryName }, '', '#' + encodeURIComponent(currentCategoryName));
+      history.pushState({ view: 'category', id: currentCategoryId, name: currentCategoryName }, '', '#' + currentCategoryName);
     } else {
-      history.pushState({ view: 'folder', stack: [...folderStack], categoryId: currentCategoryId, categoryName: currentCategoryName }, '', '#' + encodeURIComponent(currentCategoryName));
+      history.pushState({ view: 'folder', stack: [...folderStack], categoryId: currentCategoryId, categoryName: currentCategoryName }, '', '#' + currentCategoryName);
     }
   }
 
@@ -662,7 +662,7 @@
     folderStack.push({ id, name });
     currentFolderId = id;
     currentFolderName = name;
-    history.pushState({ view: 'folder', stack: [...folderStack], categoryId: currentCategoryId, categoryName: currentCategoryName }, '', '#' + encodeURIComponent(currentCategoryName));
+    history.pushState({ view: 'folder', stack: [...folderStack], categoryId: currentCategoryId, categoryName: currentCategoryName }, '', '#' + currentCategoryName);
     document.getElementById('current-folder-badge').textContent = name;
     renderBreadcrumb();
     loadFolders();
