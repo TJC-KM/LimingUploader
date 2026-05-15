@@ -735,7 +735,7 @@
     let html = '';
     if (viewMode === 'list') {
       html = sortedFiles.map(f => {
-        const safeName = f.name.replace(/'/g, "\\'");
+        const safeName = f.name.replace(/'/g, "\\'")
         const renameBtn = isLoggedIn ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>` : '';
         const deleteBtn = isLoggedIn ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file','${f.id}','${safeName}')">刪除</button>` : '';
         const lineBtn = showLine ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>` : '';
@@ -747,7 +747,7 @@
       function renderMediaGrid(items, label, isVideo) {
         let g = `<div class="img-section-label">${label}（${items.length}）</div><div class="img-grid">`;
         g += items.map(f => {
-          const safeName = f.name.replace(/'/g, "\\'");
+          const safeName = f.name.replace(/'/g, "\\'")
           const deleteBtn = isLoggedIn ? `<button class="img-delete-btn" onclick="event.preventDefault();openDeleteModal('file','${f.id}','${safeName}')">🗑</button>` : '';
           const lineBtn = showLine ? `<button class="img-line-btn" onclick="event.preventDefault();openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">LINE</button>` : '';
           const thumb = `<img class="img-thumb" src="https://drive.google.com/thumbnail?id=${f.id}&sz=w300" alt="${f.name}" loading="lazy">`;
@@ -760,7 +760,7 @@
       if (images.length > 0) { html += renderMediaGrid(images, '圖片', false); if (videos.length > 0 || others.length > 0) html += `<hr class="img-section-divider">`; }
       if (videos.length > 0) { html += renderMediaGrid(videos, '影片', true); if (others.length > 0) html += `<hr class="img-section-divider">`; }
       html += others.map(f => {
-        const safeName = f.name.replace(/'/g, "\\'");
+        const safeName = f.name.replace(/'/g, "\\'")
         const renameBtn = isLoggedIn ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>` : '';
         const deleteBtn = isLoggedIn ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file', '${f.id}')">刪除</button>` : '';
         const lineBtn = showLine ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>` : '';
