@@ -413,7 +413,15 @@
   let _currentImages = [];
   let _uploadCount = 0;
 
-  window.onload = () => { history.replaceState({ view: 'home' }, ''); loadCategories(); };
+  window.onload = async () => {
+    history.replaceState({ view: 'home' }, '', location.pathname);
+    await loadCategories();
+    const hash = decodeURIComponent(location.hash.slice(1));
+    if (hash) {
+      const cat = CATEGORIES.find(c => c.name === hash);
+      if (cat && cat.type !== 'link') selectCategory(cat.id, cat.name);
+    }
+  };
 
   function handleAuthBtn() {
     if (isLoggedIn) { logout(); } else { openLoginModal(); }
@@ -546,7 +554,7 @@
     } else {
       showLoginHint();
     }
-    history.pushState({ view: 'category', id, name }, '');
+    history.pushState({ view: 'category', id, name }, '', '#' + encodeURIComponent(name));
   }
 
   function goHome() {
@@ -558,7 +566,7 @@
     document.getElementById('folder-view').style.display = 'none';
     document.getElementById('category-view').style.display = 'block';
     document.getElementById('sheet-btn').style.display = 'none';
-    history.pushState({ view: 'home' }, '');
+    history.pushState({ view: 'home' }, '', location.pathname);
   }
 
   function goToStackLevel(index) {
@@ -590,9 +598,9 @@
       loadFiles(currentCategoryId);
     }
     if (index < 0) {
-      history.pushState({ view: 'category', id: currentCategoryId, name: currentCategoryName }, '');
+      history.pushState({ view: 'category', id: currentCategoryId, name: currentCategoryName }, '', '#' + encodeURIComponent(currentCategoryName));
     } else {
-      history.pushState({ view: 'folder', stack: [...folderStack], categoryId: currentCategoryId, categoryName: currentCategoryName }, '');
+      history.pushState({ view: 'folder', stack: [...folderStack], categoryId: currentCategoryId, categoryName: currentCategoryName }, '', '#' + encodeURIComponent(currentCategoryName));
     }
   }
 
@@ -654,7 +662,7 @@
     folderStack.push({ id, name });
     currentFolderId = id;
     currentFolderName = name;
-    history.pushState({ view: 'folder', stack: [...folderStack], categoryId: currentCategoryId, categoryName: currentCategoryName }, '');
+    history.pushState({ view: 'folder', stack: [...folderStack], categoryId: currentCategoryId, categoryName: currentCategoryName }, '', '#' + encodeURIComponent(currentCategoryName));
     document.getElementById('current-folder-badge').textContent = name;
     renderBreadcrumb();
     loadFolders();
