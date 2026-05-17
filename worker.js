@@ -41,6 +41,10 @@ function corsHeaders() {
 // 所有請求都會先經過這裡
 // ========================================
 export default {
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runDailySummarize(env));
+  },
+
   async fetch(request, env) {
     const headers = corsHeaders();
     const url = new URL(request.url);
@@ -841,6 +845,57 @@ function markdownToNotionBlocks(text) {
     paragraph: { rich_text: [{ text: { content: '由 Gemini AI 自動整理' },
       annotations: { italic: true, color: 'gray' } }] } });
   return blocks;
+}
+
+// ========================================
+// 每日排程：自動整理前一天的音檔
+// ========================================
+
+function getYesterdayTaipei() {
+  const taipei = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  taipei.setUTCDate(taipei.getUTCDate() - 1);
+  const yyyy = taipei.getUTCFullYear();
+  const mm = String(taipei.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(taipei.getUTCDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+async function runDailySummarize(env) {
+  const token = await getAccessToken(env);
+  const datePrefix = getYesterdayTaipei();
+
+  // 讀取 Sheet1，找出 enabled=TRUE、noUpload=TRUE、type=drive 的類別
+  const sheetRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A:I`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const sheetData = await sheetRes.json();
+  const rows = (sheetData.values || []).slice(1);
+  const targets = rows.filter(row =>
+    (row[7] || '').toUpperCase() === 'TRUE' &&  // H: enabled
+    (row[6] || '').toUpperCase() === 'TRUE' &&  // G: noUpload
+    (row[2] || '').toLowerCase() === 'drive' && // C: type=drive
+    row[3]                                       // D: 有資料夾 ID
+  );
+
+  for (const cat of targets) {
+    const folderId = cat[3];
+    const q = `'${folderId}' in parents and name contains '${datePrefix}' and trashed=false`;
+    const fileRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const fileData = await fileRes.json();
+    const files = (fileData.files || []).filter(f => f.name.startsWith(datePrefix));
+
+    for (const file of files) {
+      try {
+        await summarizeAudio(token, env, file.id, file.name, {});
+      } catch (e) {
+        console.error(`[dailySummarize] ${file.name} 失敗：${e.message}`);
+      }
+    }
+  }
 }
 
 // ========================================
