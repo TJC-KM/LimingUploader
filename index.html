@@ -48,10 +48,6 @@
   .folder-card.active { border: 2px solid #378ADD; background: #f0f7ff; }
   .folder-card .icon { font-size: 22px; margin-bottom: 6px; }
   .folder-card .name { font-size: 13px; font-weight: 500; word-break: break-word; line-height: 1.3; }
-  .add-folder-card { background: #fafafa; border: 1px dashed #ccc; border-radius: 12px; padding: 12px 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: border-color 0.15s; }
-  .add-folder-card:hover { border-color: #378ADD; }
-  .add-folder-card .plus { font-size: 22px; color: #aaa; }
-  .add-folder-card .label { font-size: 13px; color: #888; }
 
   /* 檔案列表 */
   .file-section { background: #fff; border-radius: 12px; border: 1px solid #eee; overflow: hidden; margin-bottom: 16px; }
@@ -650,13 +646,6 @@
       }
       grid.appendChild(card);
     });
-    if (isLoggedIn) {
-      const addCard = document.createElement('div');
-      addCard.className = 'add-folder-card';
-      addCard.innerHTML = `<div class="plus">＋</div><div class="label">新增資料夾</div>`;
-      addCard.onclick = openFolderModal;
-      grid.appendChild(addCard);
-    }
   }
 
   function selectFolder(id, name, cardEl) {
@@ -1145,9 +1134,10 @@
     const folderBtn = document.getElementById('folder-drive-btn');
     if (!isLoggedIn) { if (catBtn) catBtn.innerHTML = ''; if (folderBtn) folderBtn.innerHTML = ''; return; }
     const url = currentCategoryId ? `https://drive.google.com/drive/folders/${currentCategoryId}` : 'https://drive.google.com';
-    const btnHtml = `<button class="btn-drive" title="在 Google Drive 中開啟" onclick="openExternal('${url}')">☁️</button>`;
-    if (catBtn) catBtn.innerHTML = btnHtml;
-    if (folderBtn) folderBtn.innerHTML = btnHtml;
+    const driveBtn = `<button class="btn-drive" title="在 Google Drive 中開啟" onclick="openExternal('${url}')">☁️</button>`;
+    const addBtn = `<button class="btn-drive" title="新增資料夾" onclick="openFolderModal()">➕</button>`;
+    if (catBtn) catBtn.innerHTML = driveBtn;
+    if (folderBtn) folderBtn.innerHTML = driveBtn + addBtn;
   }
 
   function updateSortBtn() {
