@@ -843,35 +843,52 @@
 
   async function uploadFile(file, customName) {
     const fileName = customName || file.name;
+    const mimeType = file.type || 'application/octet-stream';
     _uploadCount++;
     const itemId = 'upload-' + Date.now() + Math.random();
     const list = document.getElementById('upload-list');
     const item = document.createElement('div');
     item.className = 'upload-item';
     item.id = itemId;
-    item.innerHTML = `<div class="upload-item-header"><div class="upload-item-name">${fileName}</div><div class="upload-item-status" id="${itemId}-status">上傳中...</div></div><div class="progress-bar"><div class="progress-fill" id="${itemId}-bar" style="width:5%"></div></div>`;
+    item.innerHTML = `<div class="upload-item-header"><div class="upload-item-name">${fileName}</div><div class="upload-item-status" id="${itemId}-status">準備中...</div></div><div class="progress-bar"><div class="progress-fill" id="${itemId}-bar" style="width:2%"></div></div>`;
     list.prepend(item);
+    const bar = document.getElementById(`${itemId}-bar`);
+    const status = document.getElementById(`${itemId}-status`);
     try {
-      const res = await fetch(`${WORKER_URL}/upload`, {
+      const urlRes = await fetch(`${WORKER_URL}/upload-url`, {
         method: 'POST',
-        headers: {
-          'X-Password': password,
-          'Content-Type': file.type || 'application/octet-stream',
-          'X-File-Meta': encodeURIComponent(JSON.stringify({ fileName, mimeType: file.type || 'application/octet-stream', folderId: currentFolderId || currentCategoryId }))
-        },
-        body: file,
+        headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName, mimeType, folderId: currentFolderId || currentCategoryId }),
       });
-      if (res.ok) {
-        document.getElementById(`${itemId}-bar`).style.width = '100%';
-        document.getElementById(`${itemId}-bar`).className = 'progress-fill done';
-        document.getElementById(`${itemId}-status`).textContent = '完成 ✓';
-        document.getElementById(`${itemId}-status`).className = 'upload-item-status done';
-      } else {
-        throw new Error('上傳失敗');
-      }
+      if (!urlRes.ok) throw new Error('取得上傳網址失敗');
+      const { uploadUrl } = await urlRes.json();
+      if (!uploadUrl) throw new Error('上傳網址為空');
+
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', uploadUrl, true);
+        xhr.setRequestHeader('Content-Type', mimeType);
+        xhr.upload.onprogress = (e) => {
+          if (!e.lengthComputable) return;
+          const pct = Math.max(2, Math.round((e.loaded / e.total) * 100));
+          bar.style.width = pct + '%';
+          status.textContent = `上傳中 ${pct}%`;
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error(`Google 回應 ${xhr.status}`));
+        };
+        xhr.onerror = () => reject(new Error('網路錯誤'));
+        xhr.send(file);
+      });
+
+      bar.style.width = '100%';
+      bar.className = 'progress-fill done';
+      status.textContent = '完成 ✓';
+      status.className = 'upload-item-status done';
     } catch (err) {
-      document.getElementById(`${itemId}-status`).textContent = '上傳失敗';
-      document.getElementById(`${itemId}-status`).className = 'upload-item-status error';
+      status.textContent = '上傳失敗：' + (err.message || err);
+      status.className = 'upload-item-status error';
     } finally {
       _uploadCount--;
     }

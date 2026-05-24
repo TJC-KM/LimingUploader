@@ -140,8 +140,20 @@ export default {
         );
       }
 
-      // 取得大檔案上傳網址（需要密碼）
-      // 代理上傳：接收瀏覽器的檔案，轉傳給 Google Drive
+      // 取得 Google Drive Resumable Upload 網址（需要密碼）
+      // 前端拿到網址後直接 PUT 檔案到 Google，繞過 Worker 100MB request 上限
+      if (path === '/upload-url' && method === 'POST') {
+        const { fileName, mimeType, folderId } = await request.json();
+        return await getUploadUrl(
+          token,
+          fileName,
+          mimeType || 'application/octet-stream',
+          folderId || env.FOLDER_ID,
+          headers
+        );
+      }
+
+      // 代理上傳（小檔案 fallback，<100MB）：接收瀏覽器的檔案轉傳給 Google Drive
       if (path === '/upload' && method === 'POST') {
         const { fileName, mimeType, folderId } = JSON.parse(
           decodeURIComponent(request.headers.get('X-File-Meta') || '{}')
