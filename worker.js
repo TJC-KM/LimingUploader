@@ -543,7 +543,7 @@ async function addScheduleRow(token, body, headers) {
 // 這樣可以支援超大檔案，也不會佔用 Worker 的資源
 async function getUploadUrl(token, fileName, mimeType, folderId, headers) {
   const res = await fetch(
-    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true',
     {
       method: 'POST',
       headers: {
