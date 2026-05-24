@@ -879,7 +879,7 @@
           if (xhr.status >= 200 && xhr.status < 300) resolve();
           else reject(new Error(`Google 回應 ${xhr.status}`));
         };
-        xhr.onerror = () => reject(new Error('網路錯誤'));
+        xhr.onerror = () => reject(new Error(`網路錯誤（HTTP ${xhr.status || '無回應'}）`));
         xhr.send(file);
       });
 

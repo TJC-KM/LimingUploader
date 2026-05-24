@@ -550,6 +550,7 @@ async function getUploadUrl(token, fileName, mimeType, folderId, headers) {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         'X-Upload-Content-Type': mimeType, // 告訴 Google 即將上傳的檔案類型
+        Origin: ALLOWED_ORIGIN,            // 讓簽出的 URL 接受該 origin 跨域 PUT
       },
       body: JSON.stringify({
         name: fileName,        // 上傳後的檔案名稱
