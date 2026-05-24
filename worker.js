@@ -757,7 +757,7 @@ async function summarizeAudio(driveToken, env, fileId, fileName, headers) {
   if (!prompt) throw new Error('未在 Config 頁籤設定 summarize_prompt，請至 Google Sheet 新增');
 
   const genRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1045,7 +1045,7 @@ async function parseScheduleWithGemini(token, env, rawData, year, month) {
   let data;
   for (let attempt = 1; attempt <= 3; attempt++) {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
