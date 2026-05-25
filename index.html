@@ -692,9 +692,19 @@
   }
 
   function openFolderModal() {
-    document.getElementById('folder-name-input').value = '';
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const prefix = `${y}.${m}.${d} `;
+    const placeholder = '活動名稱';
+    const input = document.getElementById('folder-name-input');
+    input.value = prefix + placeholder;
     document.getElementById('folder-modal').classList.add('show');
-    setTimeout(() => document.getElementById('folder-name-input').focus(), 100);
+    setTimeout(() => {
+      input.focus();
+      input.setSelectionRange(prefix.length, prefix.length + placeholder.length);
+    }, 100);
   }
 
   function closeFolderModal() {
