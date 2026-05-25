@@ -214,6 +214,20 @@
   </div>
 </div>
 
+<!-- 資料夾建立成功彈窗 -->
+<div class="modal-overlay" id="folder-created-modal">
+  <div class="modal">
+    <h3>✓ 資料夾已建立</h3>
+    <p id="folder-created-name" style="color:#378ADD;font-weight:500;margin-bottom:10px"></p>
+    <input type="text" id="folder-created-link" readonly style="font-size:11px;color:#666;background:#f9f9f9;cursor:text" onclick="this.select()" />
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeFolderCreatedModal()">關閉</button>
+      <button class="btn-secondary" onclick="enterCreatedFolder()">進入</button>
+      <button class="btn-primary" id="folder-created-copy" onclick="copyCreatedFolderLink()">📋 複製連結</button>
+    </div>
+  </div>
+</div>
+
 <!-- 刪除確認彈窗 -->
 <div class="modal-overlay" id="delete-modal">
   <div class="modal">
@@ -711,16 +725,58 @@
     document.getElementById('folder-modal').classList.remove('show');
   }
 
+  let _createdFolder = null;
+
   async function confirmCreateFolder() {
     const name = document.getElementById('folder-name-input').value.trim();
     if (!name) return;
-    await fetch(`${WORKER_URL}/folders`, {
+    const res = await fetch(`${WORKER_URL}/folders`, {
       method: 'POST',
       headers: { 'X-Password': password, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, parentId: currentCategoryId })
     });
+    const data = await res.json().catch(() => ({}));
     closeFolderModal();
     loadFolders();
+    if (data && data.id) {
+      const base = location.href.replace(/[^\/]*$/, '');
+      const url = `${base}gallery.html?folderId=${data.id}&name=${encodeURIComponent(name)}`;
+      _createdFolder = { id: data.id, name, url };
+      document.getElementById('folder-created-name').textContent = `📁 ${name}`;
+      document.getElementById('folder-created-link').value = url;
+      const copyBtn = document.getElementById('folder-created-copy');
+      copyBtn.textContent = '📋 複製連結';
+      copyBtn.style.background = '';
+      document.getElementById('folder-created-modal').classList.add('show');
+    }
+  }
+
+  function closeFolderCreatedModal() {
+    document.getElementById('folder-created-modal').classList.remove('show');
+    _createdFolder = null;
+  }
+
+  async function copyCreatedFolderLink() {
+    if (!_createdFolder) return;
+    try {
+      await navigator.clipboard.writeText(_createdFolder.url);
+      const btn = document.getElementById('folder-created-copy');
+      btn.textContent = '✓ 已複製';
+      btn.style.background = '#3B6D11';
+      setTimeout(() => {
+        btn.textContent = '📋 複製連結';
+        btn.style.background = '';
+      }, 2000);
+    } catch (e) {
+      document.getElementById('folder-created-link').select();
+    }
+  }
+
+  function enterCreatedFolder() {
+    if (!_createdFolder) return;
+    const { id, name } = _createdFolder;
+    closeFolderCreatedModal();
+    selectFolder(id, name);
   }
 
   async function loadFiles(folderId) {
