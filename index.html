@@ -1081,11 +1081,12 @@
     const fromParentId = _deleteType === 'folder'
       ? (folderStack.length > 0 ? folderStack[folderStack.length - 1].id : currentCategoryId)
       : (currentFolderId || currentCategoryId);
+    const trashFolderId = CATEGORIES.find(c => c.id === currentCategoryId)?.trashFolderId || null;
     try {
       const res = await fetch(`${WORKER_URL}/move`, {
         method: 'PATCH',
         headers: { 'X-Password': password, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: _deleteId, fromParentId })
+        body: JSON.stringify({ id: _deleteId, fromParentId, trashFolderId })
       });
       const data = await res.json();
       if (res.ok) {

@@ -37,6 +37,7 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
 | G | noUpload（TRUE = 不顯示上傳區） |
 | H | enabled（TRUE = 顯示此類別） |
 | I | linePublish（TRUE = 顯示 LINE 發布按鈕） |
+| J | trashFolderId（此類別專屬的刪除區資料夾 ID，需與類別資料夾在同一個 Shared Drive；留空 fallback 到全域 TRASH_FOLDER_ID） |
 
 ### 類別設定 Sheet（SHEET_ID）— Users 頁籤（含標題列）
 | 欄 | 說明 |

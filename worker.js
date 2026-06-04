@@ -221,8 +221,8 @@ export default {
 
       // 移至刪除區（需要密碼）
       if (path === '/move' && method === 'PATCH') {
-        const { id, fromParentId } = await request.json();
-        return await moveItem(token, id, fromParentId, headers);
+        const { id, fromParentId, trashFolderId } = await request.json();
+        return await moveItem(token, id, fromParentId, trashFolderId, headers);
       }
 
       // 新增 LINE 排程（需要密碼）
@@ -408,9 +408,11 @@ async function renameItem(token, fileId, newName, headers) {
 }
 
 // 將檔案或資料夾移至刪除區（不真正刪除）
-async function moveItem(token, fileId, fromParentId, headers) {
+async function moveItem(token, fileId, fromParentId, trashFolderId, headers) {
+  // 優先使用該類別自己的刪除區（同 Shared Drive 內），fallback 才用全域預設
+  const targetTrash = trashFolderId || TRASH_FOLDER_ID;
   const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?addParents=${TRASH_FOLDER_ID}&removeParents=${fromParentId}&supportsAllDrives=true&fields=id,parents`,
+    `https://www.googleapis.com/drive/v3/files/${fileId}?addParents=${targetTrash}&removeParents=${fromParentId}&supportsAllDrives=true&fields=id,parents`,
     {
       method: 'PATCH',
       headers: {
@@ -436,7 +438,7 @@ async function moveItem(token, fileId, fromParentId, headers) {
 // 從 Google Sheet 讀取類別設定
 async function getCategories(token, headers) {
   const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A:I`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A:J`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
   const data = await res.json();
@@ -460,6 +462,7 @@ async function getCategories(token, headers) {
       sort:     row[5] || 'asc',     // 'asc' 或 'desc'
       noUpload:     (row[6] || '').toUpperCase() === 'TRUE',
       linePublish:  (row[8] || '').toUpperCase() === 'TRUE', // I欄：是否顯示 LINE 發布按鈕
+      trashFolderId: row[9] || null, // J欄：此類別專屬的刪除區資料夾 ID（同 Shared Drive 內）
     }));
 
   return new Response(JSON.stringify({ categories }), {
