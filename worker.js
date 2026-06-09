@@ -949,23 +949,34 @@ async function convertSchedule(token, env, fileName, headers) {
 
   let scheduleRows = [];
   let rawData = [];
+  let usedGemini = false;
   try {
     // 4. 讀取 sheet 所有資料
     rawData = await readAllSheetValues(token, tempSheet.id);
 
-    // 5. 用 Gemini 解析結構化資料
-    const geminiResult = await parseScheduleWithGemini(token, env, rawData, year, month);
-    scheduleRows = geminiResult.rows;
-    if (scheduleRows.length === 0) {
-      return new Response(JSON.stringify({
-        error: 'Gemini 解析結果為空',
-        debug: {
-          rawDataRows: rawData.length,
-          geminiRaw: geminiResult.raw,
-          finishReason: geminiResult.finishReason,
-          apiError: geminiResult.apiError,
-        },
-      }), { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } });
+    // 5. 程式化解析（優先）→ Gemini fallback
+    const progResult = parseScheduleProgrammatically(rawData, year, month);
+    console.log('[convert] prog:', progResult.log.join(' | '));
+
+    if (progResult.ok) {
+      scheduleRows = progResult.rows;
+    } else {
+      usedGemini = true;
+      console.log('[convert] 改用 Gemini');
+      const geminiResult = await parseScheduleWithGemini(token, env, rawData, year, month);
+      scheduleRows = geminiResult.rows;
+      if (scheduleRows.length === 0) {
+        return new Response(JSON.stringify({
+          error: 'Gemini 解析結果為空',
+          debug: {
+            rawDataRows: rawData.length,
+            geminiRaw: geminiResult.raw,
+            finishReason: geminiResult.finishReason,
+            apiError: geminiResult.apiError,
+            progLog: progResult.log,
+          },
+        }), { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } });
+      }
     }
   } finally {
     // 6. 無論成功與否都刪除暫存 sheet
@@ -979,7 +990,7 @@ async function convertSchedule(token, env, fileName, headers) {
   // 8. 新增或更新對應月份頁籤，寫入清單資料
   await writeScheduleTab(token, yearSheetId, tabName, scheduleRows);
 
-  // 9. 從 Users 頁籤取得 userId 對照表，寫入 LINE 排程
+  // 9. 回傳結果
   const sheetUrl = `https://docs.google.com/spreadsheets/d/${yearSheetId}/edit#gid=0`;
   return new Response(JSON.stringify({
     success: true,
@@ -987,6 +998,7 @@ async function convertSchedule(token, env, fileName, headers) {
     sheetUrl,
     tabName,
     rowCount: scheduleRows.length,
+    parser: usedGemini ? 'gemini' : 'programmatic',
   }), { headers: { ...headers, 'Content-Type': 'application/json' } });
 }
 
@@ -1089,6 +1101,213 @@ async function parseScheduleWithGemini(token, env, rawData, year, month) {
   } catch (e) {
     return { rows: [], raw: rawText.slice(0, 800), finishReason, apiError };
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// 程式化安排表解析（不依賴 AI，Gemini 僅作 fallback）
+//
+// 設計原則：
+//   - 用表頭文字（非欄號 A~L）定位各職務欄，容忍 K/L 對調
+//   - 值日不轉入排程
+//   - `-` 視為空白跳過
+//   - 公告列（聯契旅遊茶會等）只抓時時禱告
+//   - 週三查經：C=主領(領會)，D 抓「帶領：人名/人名」→ 查經帶領
+//   - 週二/五 C+D 合併：主領\n聚會類型：\n分享人員 → 主領=領會，分享者=聚會類型
+//   - 底部一/二/三行：安息日讀經帶領、午餐悟性禱告、愛餐清潔
+// ─────────────────────────────────────────────────────────────
+function parseScheduleProgrammatically(rawData, year, month) {
+  const log = [];
+  const rows = [];
+  const monthNum = parseInt(month);
+
+  if (!rawData || rawData.length < 4) {
+    log.push('rawData 不足');
+    return { rows, log, ok: false };
+  }
+
+  // ── 1. 找主表頭列（A 欄 = 「日期」）
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(rawData.length, 10); i++) {
+    if ((rawData[i]?.[0] || '').toString().trim() === '日期') {
+      headerIdx = i; break;
+    }
+  }
+  if (headerIdx < 0) {
+    log.push('找不到表頭列（A欄=日期）');
+    return { rows, log, ok: false };
+  }
+
+  // ── 2. 偵測子表頭列（接待 1F/2F，通常是表頭下一列）
+  let subIdx = -1;
+  const nextRow = rawData[headerIdx + 1] || [];
+  if (!nextRow[0] && nextRow.some(c => c && /[12]F|大廳|會堂/.test(c.toString()))) {
+    subIdx = headerIdx + 1;
+  }
+
+  // ── 3. 建立欄位 index → job 對應表（靠表頭文字，不靠欄號）
+  const mainHdr = rawData[headerIdx] || [];
+  const subHdr  = subIdx >= 0 ? rawData[subIdx] : [];
+  const jobMap  = {}; // 0-based col index → job name
+
+  for (let c = 2; c < Math.max(mainHdr.length, 13); c++) {
+    const m = (mainHdr[c] || '').toString().replace(/\s/g, '');
+    const s = (subHdr[c]  || '').toString().replace(/\s/g, '');
+    let job = '';
+
+    if      (m === '接待')                job = s.includes('1F') ? '接待1F' : '接待';
+    else if (!m && s.includes('2F'))       job = '接待2F';
+    else if (/^時時/.test(m))             job = '時時禱告';
+    else if (/視聽/.test(m))              job = '視聽';
+    else if (m === '值日')                continue; // 值日不轉
+    else if (m)                            job = m;
+    else                                   continue;
+
+    jobMap[c] = job;
+  }
+  log.push('jobMap:' + JSON.stringify(jobMap));
+
+  // ── 4. 逐列掃描資料行
+  const dataStart = (subIdx >= 0 ? subIdx : headerIdx) + 1;
+  let day = null;
+  let bottomStart = -1;
+
+  for (let r = dataStart; r < rawData.length; r++) {
+    const row  = rawData[r] || [];
+    const aVal = (row[0] || '').toString().trim();
+    const bVal = (row[1] || '').toString().trim(); // 星期
+    const cVal = (row[2] || '').toString().trim(); // 領會/主領/公告
+
+    // 底部彙整列偵測（一、二、三、...）
+    if (/^[一二三四]、/.test(aVal)) { bottomStart = r; break; }
+
+    // 更新當前日期（A欄出現數字表示新的一天）
+    if (aVal && /^\d/.test(aVal)) {
+      const d = parseFloat(aVal);
+      if (!isNaN(d)) day = Math.round(d);
+    }
+    if (!day || !bVal) continue;
+
+    const date = `${year}/${monthNum}/${day}`;
+
+    // ── 4a. 公告列：只抓時時禱告
+    if (_isAnnouncement(row, cVal, bVal)) {
+      _pickJobs(rows, date, row, jobMap, ['時時禱告']);
+      continue;
+    }
+
+    // ── 4b. 週三（查經聚會）
+    if (bVal === '三') {
+      if (cVal && cVal !== '-') {
+        splitNames(cVal).forEach(p => rows.push({ date, person: p, job: '領會' }));
+      }
+      // D 欄：「帶領：人名/人名，進度：...」→ 查經帶領
+      const dVal = (row[3] || '').toString().trim();
+      if (dVal && dVal !== '-') {
+        const m = dVal.match(/帶領[：:]\s*([^，,。\n]+)/);
+        if (m) {
+          m[1].trim().split(/[/／、\s]+/).filter(Boolean).forEach(p => {
+            rows.push({ date, person: p.trim(), job: '查經帶領' });
+          });
+        }
+      }
+      // 週三只取視聽、時時禱告
+      _pickJobs(rows, date, row, jobMap, ['視聽', '時時禱告']);
+      continue;
+    }
+
+    // ── 4c. 一般服事日（週二/五/六上/六下/日）
+    if (cVal && cVal !== '-') {
+      if (cVal.includes('\n')) {
+        // 格式：主領\n聚會類型：\n分享人員
+        const parts = cVal.split('\n').map(s => s.trim()).filter(Boolean);
+        const leader   = parts[0] || '';
+        const typeRaw  = parts[1] || '';
+        const shareStr = parts[2] || '';
+
+        splitNames(leader).forEach(p => rows.push({ date, person: p, job: '領會' }));
+        if (shareStr) {
+          const shareJob = typeRaw.replace(/[：:]\s*$/, '').trim() || '分享';
+          splitNames(shareStr).forEach(p => rows.push({ date, person: p, job: shareJob }));
+        }
+      } else {
+        // 純主領
+        splitNames(cVal).forEach(p => rows.push({ date, person: p, job: '領會' }));
+      }
+    }
+
+    // 其他欄（D翻譯, E領詩, F司琴, G接待1F, H接待2F, I車管, J視聽, L時時禱告）
+    for (const [ci, job] of Object.entries(jobMap)) {
+      const idx = parseInt(ci);
+      if (idx === 2) continue; // C 欄已處理
+      const v = (row[idx] || '').toString().trim();
+      if (!v || v === '-') continue;
+      splitNames(v).forEach(p => rows.push({ date, person: p, job }));
+    }
+  }
+
+  // ── 5. 底部彙整列（安息日讀經帶領、午餐悟性禱告、愛餐清潔）
+  if (bottomStart >= 0) {
+    const LABELS = {
+      '一': '安息日讀經帶領',
+      '二': '安息日午餐悟性禱告',
+      '三': '愛餐清潔',
+      // 四 = 會議公告，跳過
+    };
+    for (let r = bottomStart; r < rawData.length; r++) {
+      const text = (rawData[r] || []).map(c => (c || '').toString()).join('');
+      if (!text.trim()) continue;
+      const numMatch = text.match(/^([一二三四])[、，]/);
+      const job = numMatch ? LABELS[numMatch[1]] : null;
+      if (!job) continue;
+
+      // 解析「N日人名段」，分隔符為 /
+      const pat = /(\d+)日([^/／\d]+)/g;
+      let m;
+      while ((m = pat.exec(text)) !== null) {
+        const dt = `${year}/${monthNum}/${parseInt(m[1])}`;
+        splitNames(m[2].trim()).forEach(p => {
+          if (p.length >= 2) rows.push({ date: dt, person: p, job });
+        });
+      }
+    }
+  }
+
+  log.push(`共 ${rows.length} 筆`);
+  return { rows, log, ok: rows.length > 0 };
+}
+
+// 判斷是否為公告列（無正式服事，只有時時禱告）
+function _isAnnouncement(row, cVal, weekday) {
+  if (!cVal || cVal === '-') return false;       // 空/dash → 普通無服事日
+  if (cVal.includes('\n')) return false;          // 主領+聚會類型格式 → 非公告
+  if (weekday === '三') return false;             // 週三 C 欄是主領
+  // 如果翻譯/領詩/司琴有值 → 正式服事
+  const d = (row[3] || '').toString().trim();
+  const e = (row[4] || '').toString().trim();
+  const f = (row[5] || '').toString().trim();
+  if ((d && d !== '-') || (e && e !== '-') || (f && f !== '-')) return false;
+  // C 欄含公告關鍵字，或字數超過 8（無法是人名）
+  return cVal.length > 8 || /聯契|旅遊|茶會|福音|地點[：:]|職務會/.test(cVal);
+}
+
+// 只抓指定 job 集合對應的欄位
+function _pickJobs(rows, date, row, jobMap, allowed) {
+  const set = new Set(allowed);
+  for (const [ci, job] of Object.entries(jobMap)) {
+    if (!set.has(job)) continue;
+    const v = (row[parseInt(ci)] || '').toString().trim();
+    if (!v || v === '-') continue;
+    splitNames(v).forEach(p => rows.push({ date, person: p, job }));
+  }
+}
+
+// 拆分多人字串（空格、全形空格、頓號分隔）
+function splitNames(val) {
+  if (!val) return [];
+  return val
+    .split(/[\s　、，,]+/)
+    .map(p => p.trim())
+    .filter(p => p && p !== '-' && p.length >= 2);
 }
 
 // 在輸出資料夾找或建立年度 Google Sheet
