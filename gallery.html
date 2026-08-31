@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>黎明寶庫</title>
+<meta property="og:site_name" content="黎明寶庫">
+<meta property="og:title" content="黎明寶庫">
+<meta property="og:description" content="黎明教會媒體資源庫">
+<meta property="og:image" content="https://tjc-km.github.io/LimingUploader/logo_10th.png">
+<meta property="og:type" content="website">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; min-height: 100vh; }
@@ -259,7 +264,7 @@
     currentFolderId = id;
     setFolderName(name);
     document.getElementById('back-btn').style.display = '';
-    history.pushState({ folderId: id, name }, '', `?folderId=${id}&name=${encodeURIComponent(name)}`);
+    history.pushState({ folderId: id, name }, '', `?folderId=${id}&name=${name}`);
     loadGallery(id);
   }
 
@@ -282,6 +287,7 @@
   function setFolderName(name) {
     document.getElementById('folder-name-display').textContent = name;
     document.title = name + ' — 黎明寶庫';
+    document.querySelector('meta[property="og:title"]').content = name + ' — 黎明寶庫';
   }
 
   // ── Lightbox ──────────────────────────────
@@ -404,12 +410,12 @@
   // ── 複製連結 ──────────────────────────────
 
   function copyLink() {
-    navigator.clipboard.writeText(location.href).then(() => {
-      const btn = document.getElementById('copy-btn');
-      btn.textContent = '✓ 已複製';
-      btn.classList.add('copied');
-      setTimeout(() => { btn.textContent = '🔗 分享'; btn.classList.remove('copied'); }, 2000);
-    });
+    const url = location.href;
+    const btn = document.getElementById('copy-btn');
+    const reset = () => setTimeout(() => { btn.textContent = '🔗 分享'; btn.classList.remove('copied'); }, 2000);
+    navigator.clipboard.writeText(url).then(() => {
+      btn.textContent = '✓ 已複製'; btn.classList.add('copied'); reset();
+    }).catch(() => { prompt('複製以下連結：', url); });
   }
 
   // ── 外部瀏覽器 ───────────────────────────
