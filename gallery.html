@@ -121,20 +121,6 @@
   <div id="content"><div class="msg">載入中...</div></div>
 </div>
 
-<!-- 密碼 modal -->
-<div class="modal-overlay" id="password-modal">
-  <div class="modal">
-    <h3>🔐 上傳需要密碼</h3>
-    <p>輸入密碼後可上傳檔案到此資料夾</p>
-    <input type="password" id="password-input" placeholder="密碼提示：523..." onkeydown="if(event.key==='Enter')confirmPassword()" />
-    <div class="error-msg" id="password-error"></div>
-    <div class="modal-btns">
-      <button class="btn-secondary" onclick="closePasswordModal()">取消</button>
-      <button class="btn-primary" onclick="confirmPassword()">確認</button>
-    </div>
-  </div>
-</div>
-
 <!-- 隱藏的檔案選擇器 -->
 <input type="file" id="file-input" style="display:none" multiple onchange="handleFiles(this.files)">
 
@@ -341,51 +327,13 @@
     if (Math.abs(dx) > 50) dx < 0 ? nextImg() : prevImg();
   });
 
-  // ── 上傳（需密碼） ───────────────────────
+  // ── 上傳 ─────────────────────────────────
 
-  let password = '';
-  let isLoggedIn = false;
   const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024;
 
   function openUpload() {
     if (!currentFolderId) { alert('請先進入資料夾'); return; }
-    if (!isLoggedIn) {
-      document.getElementById('password-input').value = '';
-      document.getElementById('password-error').textContent = '';
-      document.getElementById('password-modal').classList.add('show');
-      setTimeout(() => document.getElementById('password-input').focus(), 100);
-    } else {
-      document.getElementById('file-input').click();
-    }
-  }
-
-  function closePasswordModal() {
-    document.getElementById('password-modal').classList.remove('show');
-  }
-
-  async function confirmPassword() {
-    const input = document.getElementById('password-input').value;
-    const errEl = document.getElementById('password-error');
-    errEl.textContent = '';
-    if (!input) { errEl.textContent = '請輸入密碼'; return; }
-    try {
-      const res = await fetch(`${WORKER_URL}/auth`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: input }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        password = input;
-        isLoggedIn = true;
-        closePasswordModal();
-        document.getElementById('file-input').click();
-      } else {
-        errEl.textContent = '密碼錯誤';
-      }
-    } catch (e) {
-      errEl.textContent = '驗證失敗：' + e.message;
-    }
+    document.getElementById('file-input').click();
   }
 
   async function handleFiles(files) {
@@ -418,7 +366,7 @@
     try {
       const urlRes = await fetch(`${WORKER_URL}/upload-url`, {
         method: 'POST',
-        headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileName, mimeType, folderId: currentFolderId }),
       });
       if (!urlRes.ok) throw new Error('取得上傳網址失敗');

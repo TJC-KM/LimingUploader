@@ -186,21 +186,6 @@
 </head>
 <body>
 
-<!-- 登入彈窗 -->
-<div class="modal-overlay" id="login-modal">
-  <div class="modal">
-    <h3>🔐 登入</h3>
-    <p>輸入密碼後可上傳檔案及新增資料夾</p>
-    <input type="password" id="login-password" placeholder="密碼提示：523..." />
-    <div class="error-msg" id="login-error"></div>
-    <div class="success-msg" id="login-success"></div>
-    <div class="modal-btns">
-      <button class="btn-secondary" onclick="closeLoginModal()">取消</button>
-      <button class="btn-primary" id="login-confirm-btn" onclick="confirmLogin()">登入</button>
-    </div>
-  </div>
-</div>
-
 <!-- 新增資料夾彈窗 -->
 <div class="modal-overlay" id="folder-modal">
   <div class="modal">
@@ -361,10 +346,6 @@
 <div class="container">
   <div class="top-bar">
     <h1>📁 黎明寶庫</h1>
-    <div class="top-bar-right">
-      <span class="status-badge" id="status-badge">訪客模式</span>
-      <button id="auth-btn" class="btn-primary" onclick="handleAuthBtn()">登入</button>
-    </div>
   </div>
 
   <!-- 類別選擇畫面 -->
@@ -410,8 +391,6 @@
 
   let CATEGORIES = [];
 
-  let password = '';
-  let isLoggedIn = false;
   let currentCategoryId = null;
   let currentCategoryName = '';
   let currentFolderId = null;
@@ -438,84 +417,6 @@
       history.replaceState({ view: 'home' }, '', location.pathname);
     }
   };
-
-  function handleAuthBtn() {
-    if (isLoggedIn) { logout(); } else { openLoginModal(); }
-  }
-
-  function openLoginModal() {
-    document.getElementById('login-password').value = '';
-    document.getElementById('login-error').textContent = '';
-    document.getElementById('login-success').textContent = '';
-    document.getElementById('login-confirm-btn').disabled = false;
-    document.getElementById('login-confirm-btn').textContent = '登入';
-    document.getElementById('login-modal').classList.add('show');
-    setTimeout(() => document.getElementById('login-password').focus(), 100);
-  }
-
-  function closeLoginModal() {
-    document.getElementById('login-modal').classList.remove('show');
-  }
-
-  async function confirmLogin() {
-    const input = document.getElementById('login-password').value.trim();
-    if (!input) return;
-    const btn = document.getElementById('login-confirm-btn');
-    btn.disabled = true;
-    btn.textContent = '驗證中...';
-    document.getElementById('login-error').textContent = '';
-    try {
-      const res = await fetch(`${WORKER_URL}/auth`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: input })
-      });
-      const data = await res.json();
-      if (data.ok) {
-        password = input;
-        isLoggedIn = true;
-        document.getElementById('login-success').textContent = '✓ 登入成功！';
-        document.getElementById('status-badge').textContent = '已登入';
-        document.getElementById('status-badge').className = 'status-badge logged-in';
-        document.getElementById('auth-btn').textContent = '登出';
-        document.getElementById('auth-btn').className = 'btn-ghost';
-        setTimeout(() => {
-          closeLoginModal();
-          updateDriveBtn();
-          if (currentCategoryId) {
-            loadFolders();
-            const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
-            if (!noUpload) showUploadZone();
-          }
-        }, 800);
-      } else {
-        document.getElementById('login-error').textContent = '✗ 密碼錯誤，請再試一次（提示：523...）';
-        document.getElementById('status-badge').textContent = '密碼錯誤';
-        document.getElementById('status-badge').className = 'status-badge error';
-        btn.disabled = false;
-        btn.textContent = '登入';
-      }
-    } catch (err) {
-      document.getElementById('login-error').textContent = '網路錯誤，請稍後再試';
-      btn.disabled = false;
-      btn.textContent = '登入';
-    }
-  }
-
-  function logout() {
-    password = '';
-    isLoggedIn = false;
-    document.getElementById('status-badge').textContent = '訪客模式';
-    document.getElementById('status-badge').className = 'status-badge';
-    document.getElementById('auth-btn').textContent = '登入';
-    document.getElementById('auth-btn').className = 'btn-primary';
-    updateDriveBtn();
-    if (currentCategoryId) {
-      loadFolders();
-      const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
-      if (!noUpload) showLoginHint();
-    }
-  }
 
   async function loadCategories() {
     const grid = document.getElementById('category-grid');
@@ -565,10 +466,8 @@
     const noUpload = cat?.noUpload;
     if (noUpload) {
       document.getElementById('upload-area').innerHTML = '';
-    } else if (isLoggedIn) {
-      showUploadZone();
     } else {
-      showLoginHint();
+      showUploadZone();
     }
     history.pushState({ view: 'category', id, name }, '', '#' + name);
   }
@@ -600,16 +499,14 @@
     if (currentFolderId) {
       loadFiles(currentFolderId);
       document.getElementById('current-folder-badge').textContent = currentFolderName;
-      if (isLoggedIn) showUploadZone(); else showLoginHint();
+      showUploadZone();
     } else {
       document.getElementById('current-folder-badge').textContent = currentCategoryName;
       const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
       if (noUpload) {
         document.getElementById('upload-area').innerHTML = '';
-      } else if (isLoggedIn) {
-        showUploadZone();
       } else {
-        showLoginHint();
+        showUploadZone();
       }
       loadFiles(currentCategoryId);
     }
@@ -642,13 +539,11 @@
     const data = await res.json();
     const grid = document.getElementById('folder-grid');
     grid.innerHTML = '';
-    if (isLoggedIn) {
-      const addCard = document.createElement('div');
-      addCard.className = 'add-folder-card';
-      addCard.innerHTML = `<div class="plus">＋</div><div class="label">新增資料夾</div>`;
-      addCard.onclick = openFolderModal;
-      grid.appendChild(addCard);
-    }
+    const addCard = document.createElement('div');
+    addCard.className = 'add-folder-card';
+    addCard.innerHTML = `<div class="plus">＋</div><div class="label">新增資料夾</div>`;
+    addCard.onclick = openFolderModal;
+    grid.appendChild(addCard);
     (data.files || []).sort((a, b) =>
       sortAsc ? a.name.localeCompare(b.name, 'zh-TW') : b.name.localeCompare(a.name, 'zh-TW')
     ).forEach(folder => {
@@ -656,20 +551,18 @@
       card.className = 'folder-card' + (folder.id === currentFolderId ? ' active' : '');
       card.innerHTML = `<div class="icon">📁</div><div class="name">${folder.name}</div>`;
       card.onclick = () => selectFolder(folder.id, folder.name, card);
-      if (isLoggedIn) {
-        const renameBtn = document.createElement('button');
-        renameBtn.className = 'folder-rename-btn';
-        renameBtn.textContent = '✏️';
-        renameBtn.title = '重新命名';
-        renameBtn.onclick = (e) => { e.stopPropagation(); openRenameModal('folder', folder.id, folder.name); };
-        card.appendChild(renameBtn);
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'folder-delete-btn';
-        deleteBtn.textContent = '🗑️';
-        deleteBtn.title = '移至刪除區';
-        deleteBtn.onclick = (e) => { e.stopPropagation(); openDeleteModal('folder', folder.id, folder.name); };
-        card.appendChild(deleteBtn);
-      }
+      const renameBtn = document.createElement('button');
+      renameBtn.className = 'folder-rename-btn';
+      renameBtn.textContent = '✏️';
+      renameBtn.title = '重新命名';
+      renameBtn.onclick = (e) => { e.stopPropagation(); openRenameModal('folder', folder.id, folder.name); };
+      card.appendChild(renameBtn);
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'folder-delete-btn';
+      deleteBtn.textContent = '🗑️';
+      deleteBtn.title = '移至刪除區';
+      deleteBtn.onclick = (e) => { e.stopPropagation(); openDeleteModal('folder', folder.id, folder.name); };
+      card.appendChild(deleteBtn);
       grid.appendChild(card);
     });
   }
@@ -686,23 +579,12 @@
     const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
     if (noUpload) {
       document.getElementById('upload-area').innerHTML = '';
-    } else if (isLoggedIn) {
-      showUploadZone();
     } else {
-      showLoginHint();
+      showUploadZone();
     }
     if (window.innerWidth <= 768) {
       setTimeout(() => { document.querySelector('.file-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 300);
     }
-  }
-
-  function showLoginHint() {
-    document.getElementById('upload-area').innerHTML = `
-      <div class="login-hint" onclick="openLoginModal()" title="點此登入">
-        <p>登入後才能上傳檔案或新增資料夾</p>
-        <button class="btn-primary" onclick="event.stopPropagation();openLoginModal()">立即登入</button>
-      </div>
-    `;
   }
 
   function openFolderModal() {
@@ -732,7 +614,7 @@
     if (!name) return;
     const res = await fetch(`${WORKER_URL}/folders`, {
       method: 'POST',
-      headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, parentId: currentCategoryId })
     });
     const data = await res.json().catch(() => ({}));
@@ -799,15 +681,15 @@
     const videos = sortedFiles.filter(f => f.mimeType && f.mimeType.startsWith('video/'));
     const others = sortedFiles.filter(f => !f.mimeType || (!f.mimeType.startsWith('image/') && !f.mimeType.startsWith('video/')));
     _currentImages = images;
-    const showLine = isLoggedIn && CATEGORIES.find(c => c.id === currentCategoryId)?.linePublish;
+    const showLine = CATEGORIES.find(c => c.id === currentCategoryId)?.linePublish;
     let html = '';
     if (viewMode === 'list') {
       html = sortedFiles.map(f => {
         const safeName = f.name.replace(/'/g, "\\'")
-        const renameBtn = isLoggedIn ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>` : '';
-        const deleteBtn = isLoggedIn ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file','${f.id}','${safeName}')">刪除</button>` : '';
+        const renameBtn = `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>`;
+        const deleteBtn = `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file','${f.id}','${safeName}')">刪除</button>`;
         const lineBtn = showLine ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>` : '';
-        const summarizeBtn = isLoggedIn && f.mimeType && f.mimeType.startsWith('audio/') ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>` : '';
+        const summarizeBtn = f.mimeType && f.mimeType.startsWith('audio/') ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>` : '';
         const convertBtn = showLine && /^(\d{4}-\d{2}|\d{6})/.test(f.name) && f.name.includes('安排表') ? `<button class="btn-action btn-action-convert" onclick="convertSchedule('${f.id}','${safeName}')">轉檔</button>` : '';
         return `<div class="file-row"><div class="file-type-icon">${getFileIcon(f.mimeType)}</div><div class="file-info"><div class="file-name">${f.name}</div><div class="file-meta">${formatSize(f.size)}</div></div><div class="file-date">${formatDate(f.createdTime)}</div><div class="file-actions"><a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a><a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}${convertBtn}</div></div>`;
       }).join('');
@@ -816,7 +698,7 @@
         let g = `<div class="img-section-label">${label}（${items.length}）</div><div class="img-grid">`;
         g += items.map(f => {
           const safeName = f.name.replace(/'/g, "\\'")
-          const deleteBtn = isLoggedIn ? `<button class="img-delete-btn" onclick="event.preventDefault();openDeleteModal('file','${f.id}','${safeName}')">🗑</button>` : '';
+          const deleteBtn = `<button class="img-delete-btn" onclick="event.preventDefault();openDeleteModal('file','${f.id}','${safeName}')">🗑</button>`;
           const lineBtn = showLine ? `<button class="img-line-btn" onclick="event.preventDefault();openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">LINE</button>` : '';
           const thumb = `<img class="img-thumb" src="https://drive.google.com/thumbnail?id=${f.id}&sz=w300" alt="${f.name}" loading="lazy">`;
           const playOverlay = isVideo ? `<div class="img-play-overlay"></div>` : '';
@@ -829,10 +711,10 @@
       if (videos.length > 0) { html += renderMediaGrid(videos, '影片', true); if (others.length > 0) html += `<hr class="img-section-divider">`; }
       html += others.map(f => {
         const safeName = f.name.replace(/'/g, "\\'")
-        const renameBtn = isLoggedIn ? `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>` : '';
-        const deleteBtn = isLoggedIn ? `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file', '${f.id}')">刪除</button>` : '';
+        const renameBtn = `<button class="btn-action" onclick="openRenameModal('file', '${f.id}')">改名</button>`;
+        const deleteBtn = `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file', '${f.id}')">刪除</button>`;
         const lineBtn = showLine ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>` : '';
-        const summarizeBtn = isLoggedIn && f.mimeType && f.mimeType.startsWith('audio/') ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>` : '';
+        const summarizeBtn = f.mimeType && f.mimeType.startsWith('audio/') ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>` : '';
         const convertBtn = showLine && /^(\d{4}-\d{2}|\d{6})/.test(f.name) && f.name.includes('安排表') ? `<button class="btn-action btn-action-convert" onclick="convertSchedule('${f.id}','${safeName}')">轉檔</button>` : '';
         return `<div class="file-row"><div class="file-type-icon">${getFileIcon(f.mimeType)}</div><div class="file-info"><div class="file-name">${f.name}</div><div class="file-meta">${formatSize(f.size)}</div></div><div class="file-date">${formatDate(f.createdTime)}</div><div class="file-actions"><a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a><a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}${convertBtn}</div></div>`;
       }).join('');
@@ -924,7 +806,7 @@
     try {
       const urlRes = await fetch(`${WORKER_URL}/upload-url`, {
         method: 'POST',
-        headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileName, mimeType, folderId: currentFolderId || currentCategoryId }),
       });
       if (!urlRes.ok) throw new Error('取得上傳網址失敗');
@@ -965,10 +847,6 @@
     if (e.key === 'Enter') confirmUploadRename();
     if (e.key === 'Escape') cancelUploadRename();
   });
-  document.getElementById('login-password').addEventListener('keydown', e => {
-    if (e.key === 'Enter') confirmLogin();
-    if (e.key === 'Escape') closeLoginModal();
-  });
   document.getElementById('folder-name-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') confirmCreateFolder();
     if (e.key === 'Escape') closeFolderModal();
@@ -1003,7 +881,7 @@
       viewMode = 'grid'; updateViewToggleBtn(); renderBreadcrumb(); updateDriveBtn(); loadFolders(); loadFiles(state.id);
       document.getElementById('sheet-btn').style.display = cat?.linePublish ? '' : 'none';
       const noUpload1 = cat?.noUpload;
-      if (noUpload1) { document.getElementById('upload-area').innerHTML = ''; } else if (isLoggedIn) { showUploadZone(); } else { showLoginHint(); }
+      if (noUpload1) { document.getElementById('upload-area').innerHTML = ''; } else { showUploadZone(); }
     } else if (state.view === 'folder') {
       currentCategoryId = state.categoryId; currentCategoryName = state.categoryName;
       folderStack = state.stack;
@@ -1015,7 +893,7 @@
       const cat2 = CATEGORIES.find(c => c.id === currentCategoryId);
       document.getElementById('sheet-btn').style.display = cat2?.linePublish ? '' : 'none';
       const noUpload2 = cat2?.noUpload;
-      if (noUpload2) { document.getElementById('upload-area').innerHTML = ''; } else if (isLoggedIn) { showUploadZone(); } else { showLoginHint(); }
+      if (noUpload2) { document.getElementById('upload-area').innerHTML = ''; } else { showUploadZone(); }
     }
   });
 
@@ -1044,7 +922,7 @@
     try {
       const res = await fetch(`${WORKER_URL}/rename`, {
         method: 'PATCH',
-        headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: _renameId, newName })
       });
       const data = await res.json();
@@ -1085,7 +963,7 @@
     try {
       const res = await fetch(`${WORKER_URL}/move`, {
         method: 'PATCH',
-        headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: _deleteId, fromParentId, trashFolderId })
       });
       const data = await res.json();
@@ -1189,7 +1067,7 @@
     try {
       const res = await fetch(`${WORKER_URL}/schedule`, {
         method: 'POST',
-        headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ time: `${date} ${time}`, targetId, targetName, type, content, title, subBtn })
       });
       const d = await res.json();
@@ -1211,7 +1089,6 @@
   function updateDriveBtn() {
     const catBtn = document.getElementById('category-drive-btn');
     const folderBtn = document.getElementById('folder-drive-btn');
-    if (!isLoggedIn) { if (catBtn) catBtn.innerHTML = ''; if (folderBtn) folderBtn.innerHTML = ''; return; }
     const url = currentCategoryId ? `https://drive.google.com/drive/folders/${currentCategoryId}` : 'https://drive.google.com';
     const btnHtml = `<button class="btn-drive" title="在 Google Drive 中開啟" onclick="openExternal('${url}')">☁️</button>`;
     if (catBtn) catBtn.innerHTML = btnHtml;
@@ -1251,7 +1128,7 @@
     try {
       const res = await fetch(`${WORKER_URL}/summarize`, {
         method: 'POST',
-        headers: { 'X-Password': password, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileId, fileName }),
         signal: AbortSignal.timeout(300000),
       });
@@ -1285,7 +1162,7 @@
     try {
       const res = await fetch(`${WORKER_URL}/convert`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Password': password },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileName }),
       });
       const data = await res.json();

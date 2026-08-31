@@ -107,18 +107,6 @@ export default {
 
       // ========================================
 
-      // 驗證密碼（只有私密路由才會執行到這裡）
-      const password = request.headers.get('X-Password');
-      if (password !== env.UPLOAD_PASSWORD) {
-        return new Response(
-          JSON.stringify({ error: '密碼錯誤，沒有權限執行此操作' }),
-          {
-            status: 401,
-            headers: { ...headers, 'Content-Type': 'application/json' },
-          }
-        );
-      }
-
       // 取得 Google OAuth Token（私密路由共用）
       const token = await getAccessToken(env);
 
