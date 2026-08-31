@@ -1111,10 +1111,12 @@
     const name = currentFolderName || currentCategoryName;
     const base = location.href.replace(/[^\/]*$/, '');
     const url = `${base}gallery.html?folderId=${id}&name=${encodeURIComponent(name)}`;
+    const btn = document.getElementById('share-gallery-btn');
+    const reset = () => setTimeout(() => { btn.textContent = '🔗 分享'; btn.style.color = ''; }, 2000);
     navigator.clipboard.writeText(url).then(() => {
-      const btn = document.getElementById('share-gallery-btn');
-      btn.textContent = '✓ 已複製'; btn.style.color = '#3B6D11';
-      setTimeout(() => { btn.textContent = '🔗 分享'; btn.style.color = ''; }, 2000);
+      btn.textContent = '✓ 已複製'; btn.style.color = '#3B6D11'; reset();
+    }).catch(() => {
+      prompt('複製以下連結：', url);
     });
   }
 
