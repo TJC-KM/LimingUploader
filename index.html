@@ -86,7 +86,10 @@
   .login-hint p { font-size: 13px; color: #876800; margin-bottom: 12px; }
 
   /* 進度條 */
-  .upload-list { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .upload-list { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; max-height: 360px; overflow-y: auto; }
+  .upload-summary { margin-top: 14px; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.6; }
+  .upload-summary.ok { background: #f0faf0; color: #3B6D11; border: 1px solid #cfe8cf; }
+  .upload-summary.warn { background: #fff8e6; color: #876800; border: 1px solid #ffe58f; }
   .upload-item { background: #f9f9f9; border-radius: 10px; padding: 10px 14px; }
   .upload-item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .upload-item-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%; }
@@ -369,6 +372,7 @@
       <div id="upload-area">
         <div class="empty-files">點選下方資料夾進入</div>
       </div>
+      <div class="upload-summary" id="upload-summary" style="display:none"></div>
       <div class="upload-list" id="upload-list"></div>
     </div>
 
@@ -749,6 +753,8 @@
   }
 
   const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024;
+  const UPLOAD_CONCURRENCY = 4; // 同時上傳的檔案數
+  const UPLOAD_RETRIES = 2;     // 單檔失敗後的重試次數
 
   async function handleFiles(files) {
     const oversized = Array.from(files).filter(f => f.size > MAX_FILE_SIZE);
@@ -758,7 +764,13 @@
     }
     const valid = Array.from(files).filter(f => f.size <= MAX_FILE_SIZE);
     if (valid.length === 0) return;
+
+    // 先鎖定目標資料夾，上傳途中切換資料夾也不會讓檔案跑錯位置
+    const targetFolderId = currentFolderId || currentCategoryId;
+
+    // 改名彈窗必須逐一詢問，全部問完才開始上傳
     const showRename = !!CATEGORIES.find(c => c.id === currentCategoryId)?.linePublish;
+    const queue = [];
     for (const file of valid) {
       let fileName = file.name;
       if (showRename) {
@@ -766,9 +778,55 @@
         if (newName === null) continue;
         fileName = newName;
       }
-      await uploadFile(file, fileName);
+      queue.push({ file, fileName });
     }
-    loadFiles(currentFolderId || currentCategoryId);
+    if (queue.length === 0) return;
+
+    hideUploadSummary();
+
+    // 並行上傳：數條工作線共用同一個佇列
+    let next = 0, okCount = 0;
+    const failedNames = [];
+    const runner = async () => {
+      while (next < queue.length) {
+        const { file, fileName } = queue[next++];
+        const ok = await uploadFile(file, fileName, targetFolderId);
+        if (ok) okCount++; else failedNames.push(fileName);
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(UPLOAD_CONCURRENCY, queue.length) }, runner)
+    );
+
+    // 只有還停在同一個資料夾時才重新整理列表
+    if ((currentFolderId || currentCategoryId) === targetFolderId) loadFiles(targetFolderId);
+    showUploadSummary(okCount, failedNames);
+  }
+
+  function hideUploadSummary() {
+    const el = document.getElementById('upload-summary');
+    if (el) el.style.display = 'none';
+  }
+
+  function showUploadSummary(okCount, failedNames) {
+    const el = document.getElementById('upload-summary');
+    if (!el) return;
+    el.innerHTML = '';
+    if (failedNames.length === 0) {
+      el.className = 'upload-summary ok';
+      el.textContent = `✓ 全部完成，共上傳 ${okCount} 個檔案`;
+    } else {
+      el.className = 'upload-summary warn';
+      const head = document.createElement('div');
+      head.textContent = `成功 ${okCount} 個，失敗 ${failedNames.length} 個：`;
+      el.appendChild(head);
+      failedNames.forEach(n => {
+        const d = document.createElement('div');
+        d.textContent = '・' + n;
+        el.appendChild(d);
+      });
+    }
+    el.style.display = '';
   }
 
   let _uploadRenameResolve = null;
@@ -795,9 +853,10 @@
     if (_uploadRenameResolve) { _uploadRenameResolve(null); _uploadRenameResolve = null; }
   }
 
-  async function uploadFile(file, customName) {
+  async function uploadFile(file, customName, folderId) {
     const fileName = customName || file.name;
     const mimeType = file.type || 'application/octet-stream';
+    const targetFolderId = folderId || currentFolderId || currentCategoryId;
     _uploadCount++;
     const itemId = 'upload-' + Date.now() + Math.random();
     const list = document.getElementById('upload-list');
@@ -809,40 +868,53 @@
     const bar = document.getElementById(`${itemId}-bar`);
     const status = document.getElementById(`${itemId}-status`);
     try {
-      const urlRes = await fetch(`${WORKER_URL}/upload-url`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName, mimeType, folderId: currentFolderId || currentCategoryId }),
-      });
-      if (!urlRes.ok) throw new Error('取得上傳網址失敗');
-      const { uploadUrl } = await urlRes.json();
-      if (!uploadUrl) throw new Error('上傳網址為空');
+      for (let attempt = 0; attempt <= UPLOAD_RETRIES; attempt++) {
+        try {
+          // 每次重試都重新取網址，前一次的 resumable session 可能已失效
+          const urlRes = await fetch(`${WORKER_URL}/upload-url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName, mimeType, folderId: targetFolderId }),
+          });
+          if (!urlRes.ok) throw new Error('取得上傳網址失敗');
+          const { uploadUrl } = await urlRes.json();
+          if (!uploadUrl) throw new Error('上傳網址為空');
 
-      await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', uploadUrl, true);
-        xhr.setRequestHeader('Content-Type', mimeType);
-        xhr.upload.onprogress = (e) => {
-          if (!e.lengthComputable) return;
-          const pct = Math.max(2, Math.round((e.loaded / e.total) * 100));
-          bar.style.width = pct + '%';
-          status.textContent = `上傳中 ${pct}%`;
-        };
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error(`Google 回應 ${xhr.status}`));
-        };
-        xhr.onerror = () => reject(new Error(`網路錯誤（HTTP ${xhr.status || '無回應'}）`));
-        xhr.send(file);
-      });
+          await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('PUT', uploadUrl, true);
+            xhr.setRequestHeader('Content-Type', mimeType);
+            xhr.upload.onprogress = (e) => {
+              if (!e.lengthComputable) return;
+              const pct = Math.max(2, Math.round((e.loaded / e.total) * 100));
+              bar.style.width = pct + '%';
+              status.textContent = `上傳中 ${pct}%`;
+            };
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) resolve();
+              else reject(new Error(`Google 回應 ${xhr.status}`));
+            };
+            xhr.onerror = () => reject(new Error(`網路錯誤（HTTP ${xhr.status || '無回應'}）`));
+            xhr.send(file);
+          });
 
-      bar.style.width = '100%';
-      bar.className = 'progress-fill done';
-      status.textContent = '完成 ✓';
-      status.className = 'upload-item-status done';
-    } catch (err) {
-      status.textContent = '上傳失敗：' + (err.message || err);
-      status.className = 'upload-item-status error';
+          bar.style.width = '100%';
+          bar.className = 'progress-fill done';
+          status.textContent = '完成 ✓';
+          status.className = 'upload-item-status done';
+          return true;
+        } catch (err) {
+          if (attempt < UPLOAD_RETRIES) {
+            bar.style.width = '2%';
+            status.textContent = `失敗，重試中 ${attempt + 1}/${UPLOAD_RETRIES}...`;
+            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            continue;
+          }
+          status.textContent = '上傳失敗：' + (err.message || err);
+          status.className = 'upload-item-status error';
+          return false;
+        }
+      }
     } finally {
       _uploadCount--;
     }

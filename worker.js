@@ -245,10 +245,17 @@ export default {
 // 用 Service Account 的 JSON 金鑰產生 JWT
 // 再換成 Google API 的 access token
 // ========================================
+// Token 快取（同一個 isolate 內重用，避免每個請求都重新簽 JWT 換 token）
+let _tokenCache = { token: null, expiresAt: 0 };
+
 async function getAccessToken(env) {
+  const now = Math.floor(Date.now() / 1000);
+
+  // 提前 5 分鐘視為過期，避免用到剛好失效的 token
+  if (_tokenCache.token && _tokenCache.expiresAt > now + 300) return _tokenCache.token;
+
   // 從環境變數讀取 Service Account 金鑰
   const key = JSON.parse(env.SERVICE_ACCOUNT_KEY);
-  const now = Math.floor(Date.now() / 1000);
 
   // 建立 JWT Header（指定演算法）
   const header = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
@@ -280,6 +287,7 @@ async function getAccessToken(env) {
   if (!data.access_token) {
     throw new Error('無法取得 Google Token：' + JSON.stringify(data));
   }
+  _tokenCache = { token: data.access_token, expiresAt: now + (data.expires_in || 3600) };
   return data.access_token;
 }
 
