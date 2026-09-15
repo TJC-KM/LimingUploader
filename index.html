@@ -99,6 +99,14 @@
   .progress-bar { height: 4px; background: #e8e8e8; border-radius: 2px; overflow: hidden; }
   .progress-fill { height: 100%; background: #378ADD; border-radius: 2px; transition: width 0.3s; }
   .progress-fill.done { background: #639922; }
+  .upload-summary.info { background: #f0f7ff; color: #185FA5; border: 1px solid #cfe2f7; }
+  .upload-summary-tip { font-size: 12px; opacity: 0.85; }
+  .upload-retry-btn { margin-top: 8px; padding: 6px 14px; background: #378ADD; color: #fff; border: none; border-radius: 8px; font-size: 12px; cursor: pointer; }
+  .upload-item-status.skipped { color: #aaa; }
+  .upload-item-status.waiting { color: #b7791f; }
+  #resume-notice { margin: 0 0 16px; }
+  .upload-line-tip { font-size: 12px; color: #876800; margin-top: 10px; text-align: center; }
+  .upload-line-tip a { color: #378ADD; cursor: pointer; text-decoration: underline; }
 
   /* 下載樣式 */
   .file-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; max-width: 50%; justify-content: flex-end; }
@@ -356,6 +364,9 @@
     <h1>📁 黎明寶庫</h1>
   </div>
 
+  <!-- 上次沒傳完的提醒（由 upload.js 顯示） -->
+  <div id="resume-notice" style="display:none"></div>
+
   <!-- 類別選擇畫面 -->
   <div id="category-view">
     <div class="section-title">選擇類別<span id="category-drive-btn"></span></div>
@@ -393,10 +404,11 @@
   <div class="version-footer" id="version-footer"></div>
 </div>
 
+<script src="upload.js?v=20260915"></script>
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
-  document.getElementById('version-footer').textContent = '最後發布時間：2026-05-12 00:00';
+  document.getElementById('version-footer').textContent = '最後發布時間：2026-09-15 00:00';
 
   let CATEGORIES = [];
 
@@ -414,7 +426,6 @@
   let viewMode = 'grid';
   let _lineUsers = [];
   let _currentImages = [];
-  let _uploadCount = 0;
 
   window.onload = async () => {
     await loadCategories();
@@ -464,7 +475,7 @@
     document.getElementById('category-view').style.display = 'none';
     document.getElementById('folder-view').style.display = 'block';
     document.getElementById('current-folder-badge').textContent = name;
-    document.getElementById('upload-list').innerHTML = '';
+    if (!LimingUploader.isBusy()) document.getElementById('upload-list').innerHTML = '';
     viewMode = 'grid';
     updateViewToggleBtn();
     renderBreadcrumb();
@@ -740,11 +751,12 @@
       <div class="upload-zone" id="upload-zone">
         <div class="upload-icon">⬆️</div>
         <div class="upload-text">拖曳檔案到這裡</div>
-        <div class="upload-hint">支援大檔案，單檔最高 5 GB</div>
+        <div class="upload-hint">支援大檔案，單檔最高 5 GB；中斷後重選同一批檔案可接續上傳</div>
         <label class="upload-btn-label">選擇檔案
-          <input type="file" style="display:none" multiple onchange="handleFiles(this.files)">
+          <input type="file" style="display:none" multiple onchange="handleFiles(Array.from(this.files)); this.value = ''">
         </label>
       </div>
+      ${LimingUploader.isLineBrowser() ? '<div class="upload-line-tip">📱 目前在 LINE 裡開啟，切回聊天室會中斷上傳。大量上傳建議<a onclick="openExternal(location.href)">改用瀏覽器開啟</a></div>' : ''}
     `;
     const zone = document.getElementById('upload-zone');
     zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
@@ -753,20 +765,32 @@
   }
 
   const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024;
-  const UPLOAD_CONCURRENCY = 4; // 同時上傳的檔案數
-  const UPLOAD_RETRIES = 2;     // 單檔失敗後的重試次數
+
+  LimingUploader.init({
+    workerUrl: WORKER_URL,
+    listEl: document.getElementById('upload-list'),
+    statusEl: document.getElementById('upload-summary'),
+    noticeEl: document.getElementById('resume-notice'),
+    // 上傳結束時，如果還停在上傳的資料夾就重新整理列表
+    onDone: folderIds => {
+      const here = currentFolderId || currentCategoryId;
+      if (here && folderIds.includes(here)) loadFiles(here);
+    },
+  });
 
   async function handleFiles(files) {
-    const oversized = Array.from(files).filter(f => f.size > MAX_FILE_SIZE);
+    files = Array.from(files);
+    const oversized = files.filter(f => f.size > MAX_FILE_SIZE);
     if (oversized.length > 0) {
       const names = oversized.map(f => `・${f.name}（${formatSize(f.size)}）`).join('\n');
       alert(`以下檔案超過 5 GB 限制，無法上傳：\n\n${names}`);
     }
-    const valid = Array.from(files).filter(f => f.size <= MAX_FILE_SIZE);
+    const valid = files.filter(f => f.size <= MAX_FILE_SIZE);
     if (valid.length === 0) return;
 
     // 先鎖定目標資料夾，上傳途中切換資料夾也不會讓檔案跑錯位置
-    const targetFolderId = currentFolderId || currentCategoryId;
+    const folderId = currentFolderId || currentCategoryId;
+    const folderName = currentFolderName ? `${currentCategoryName} › ${currentFolderName}` : currentCategoryName;
 
     // 改名彈窗必須逐一詢問，全部問完才開始上傳
     const showRename = !!CATEGORIES.find(c => c.id === currentCategoryId)?.linePublish;
@@ -782,51 +806,8 @@
     }
     if (queue.length === 0) return;
 
-    hideUploadSummary();
-
-    // 並行上傳：數條工作線共用同一個佇列
-    let next = 0, okCount = 0;
-    const failedNames = [];
-    const runner = async () => {
-      while (next < queue.length) {
-        const { file, fileName } = queue[next++];
-        const ok = await uploadFile(file, fileName, targetFolderId);
-        if (ok) okCount++; else failedNames.push(fileName);
-      }
-    };
-    await Promise.all(
-      Array.from({ length: Math.min(UPLOAD_CONCURRENCY, queue.length) }, runner)
-    );
-
-    // 只有還停在同一個資料夾時才重新整理列表
-    if ((currentFolderId || currentCategoryId) === targetFolderId) loadFiles(targetFolderId);
-    showUploadSummary(okCount, failedNames);
-  }
-
-  function hideUploadSummary() {
-    const el = document.getElementById('upload-summary');
-    if (el) el.style.display = 'none';
-  }
-
-  function showUploadSummary(okCount, failedNames) {
-    const el = document.getElementById('upload-summary');
-    if (!el) return;
-    el.innerHTML = '';
-    if (failedNames.length === 0) {
-      el.className = 'upload-summary ok';
-      el.textContent = `✓ 全部完成，共上傳 ${okCount} 個檔案`;
-    } else {
-      el.className = 'upload-summary warn';
-      const head = document.createElement('div');
-      head.textContent = `成功 ${okCount} 個，失敗 ${failedNames.length} 個：`;
-      el.appendChild(head);
-      failedNames.forEach(n => {
-        const d = document.createElement('div');
-        d.textContent = '・' + n;
-        el.appendChild(d);
-      });
-    }
-    el.style.display = '';
+    // 分段續傳、斷線自動繼續、略過已存在的檔案都在 upload.js 處理
+    LimingUploader.add(queue, { folderId, folderName });
   }
 
   let _uploadRenameResolve = null;
@@ -851,73 +832,6 @@
   function cancelUploadRename() {
     document.getElementById('upload-rename-modal').classList.remove('show');
     if (_uploadRenameResolve) { _uploadRenameResolve(null); _uploadRenameResolve = null; }
-  }
-
-  async function uploadFile(file, customName, folderId) {
-    const fileName = customName || file.name;
-    const mimeType = file.type || 'application/octet-stream';
-    const targetFolderId = folderId || currentFolderId || currentCategoryId;
-    _uploadCount++;
-    const itemId = 'upload-' + Date.now() + Math.random();
-    const list = document.getElementById('upload-list');
-    const item = document.createElement('div');
-    item.className = 'upload-item';
-    item.id = itemId;
-    item.innerHTML = `<div class="upload-item-header"><div class="upload-item-name">${fileName}</div><div class="upload-item-status" id="${itemId}-status">準備中...</div></div><div class="progress-bar"><div class="progress-fill" id="${itemId}-bar" style="width:2%"></div></div>`;
-    list.prepend(item);
-    const bar = document.getElementById(`${itemId}-bar`);
-    const status = document.getElementById(`${itemId}-status`);
-    try {
-      for (let attempt = 0; attempt <= UPLOAD_RETRIES; attempt++) {
-        try {
-          // 每次重試都重新取網址，前一次的 resumable session 可能已失效
-          const urlRes = await fetch(`${WORKER_URL}/upload-url`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName, mimeType, folderId: targetFolderId }),
-          });
-          if (!urlRes.ok) throw new Error('取得上傳網址失敗');
-          const { uploadUrl } = await urlRes.json();
-          if (!uploadUrl) throw new Error('上傳網址為空');
-
-          await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('PUT', uploadUrl, true);
-            xhr.setRequestHeader('Content-Type', mimeType);
-            xhr.upload.onprogress = (e) => {
-              if (!e.lengthComputable) return;
-              const pct = Math.max(2, Math.round((e.loaded / e.total) * 100));
-              bar.style.width = pct + '%';
-              status.textContent = `上傳中 ${pct}%`;
-            };
-            xhr.onload = () => {
-              if (xhr.status >= 200 && xhr.status < 300) resolve();
-              else reject(new Error(`Google 回應 ${xhr.status}`));
-            };
-            xhr.onerror = () => reject(new Error(`網路錯誤（HTTP ${xhr.status || '無回應'}）`));
-            xhr.send(file);
-          });
-
-          bar.style.width = '100%';
-          bar.className = 'progress-fill done';
-          status.textContent = '完成 ✓';
-          status.className = 'upload-item-status done';
-          return true;
-        } catch (err) {
-          if (attempt < UPLOAD_RETRIES) {
-            bar.style.width = '2%';
-            status.textContent = `失敗，重試中 ${attempt + 1}/${UPLOAD_RETRIES}...`;
-            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-            continue;
-          }
-          status.textContent = '上傳失敗：' + (err.message || err);
-          status.className = 'upload-item-status error';
-          return false;
-        }
-      }
-    } finally {
-      _uploadCount--;
-    }
   }
 
   document.getElementById('upload-rename-input').addEventListener('keydown', e => {
@@ -954,7 +868,7 @@
       document.getElementById('category-view').style.display = 'none';
       document.getElementById('folder-view').style.display = 'block';
       document.getElementById('current-folder-badge').textContent = state.name;
-      document.getElementById('upload-list').innerHTML = '';
+      if (!LimingUploader.isBusy()) document.getElementById('upload-list').innerHTML = '';
       viewMode = 'grid'; updateViewToggleBtn(); renderBreadcrumb(); updateDriveBtn(); loadFolders(); loadFiles(state.id);
       document.getElementById('sheet-btn').style.display = cat?.linePublish ? '' : 'none';
       const noUpload1 = cat?.noUpload;
@@ -965,7 +879,7 @@
       currentFolderId = state.stack[state.stack.length - 1].id;
       currentFolderName = state.stack[state.stack.length - 1].name;
       document.getElementById('current-folder-badge').textContent = currentFolderName;
-      document.getElementById('upload-list').innerHTML = '';
+      if (!LimingUploader.isBusy()) document.getElementById('upload-list').innerHTML = '';
       renderBreadcrumb(); updateDriveBtn(); loadFolders(); loadFiles(currentFolderId);
       const cat2 = CATEGORIES.find(c => c.id === currentCategoryId);
       document.getElementById('sheet-btn').style.display = cat2?.linePublish ? '' : 'none';
@@ -973,8 +887,6 @@
       if (noUpload2) { document.getElementById('upload-area').innerHTML = ''; } else { showUploadZone(); }
     }
   });
-
-  window.addEventListener('beforeunload', e => { if (_uploadCount > 0) e.preventDefault(); });
 
   function openRenameModal(type, id, name) {
     _renameType = type; _renameId = id;

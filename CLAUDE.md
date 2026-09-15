@@ -4,7 +4,9 @@
 
 | 檔案 | 說明 |
 |------|------|
-| `index.html` | 唯一前端檔案，部署於 GitHub Pages |
+| `index.html` | 主要前端頁面，部署於 GitHub Pages |
+| `gallery.html` | 分享用圖庫頁（也可上傳），部署於 GitHub Pages |
+| `upload.js` | 上傳引擎（分段續傳、斷線自動繼續、略過已存在檔案），index.html 與 gallery.html 共用；修改後要更新兩個頁面引用處的 `?v=` 版本號 |
 | `worker.js` | Cloudflare Worker 後端，需手動部署（已納入 git 版控） |
 
 **後端 API：** `https://liminguploader.c3012312.workers.dev`  

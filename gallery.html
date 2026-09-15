@@ -106,6 +106,15 @@
   .progress-bar { height: 4px; background: #e8e8e8; border-radius: 2px; overflow: hidden; }
   .progress-fill { height: 100%; background: #378ADD; border-radius: 2px; transition: width 0.3s; }
   .progress-fill.done { background: #639922; }
+  .upload-summary { margin: 10px 14px 0; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.6; }
+  .upload-summary.ok { background: #f0faf0; color: #3B6D11; border: 1px solid #cfe8cf; }
+  .upload-summary.warn { background: #fff8e6; color: #876800; border: 1px solid #ffe58f; }
+  .upload-summary.info { background: #f0f7ff; color: #185FA5; border: 1px solid #cfe2f7; }
+  .upload-summary-tip { font-size: 12px; opacity: 0.85; }
+  .upload-retry-btn { margin-top: 8px; padding: 6px 14px; background: #378ADD; color: #fff; border: none; border-radius: 8px; font-size: 12px; cursor: pointer; }
+  .upload-item-status.skipped { color: #aaa; }
+  .upload-item-status.waiting { color: #b7791f; }
+  #resume-notice { margin: 0 0 16px; }
   @media (max-width: 480px) { .upload-panel { left: 10px; right: 10px; width: auto; bottom: 10px; } }
 </style>
 </head>
@@ -123,6 +132,9 @@
     </div>
   </div>
 
+  <!-- 上次沒傳完的提醒（由 upload.js 顯示） -->
+  <div id="resume-notice" style="display:none"></div>
+
   <div id="content"><div class="msg">載入中...</div></div>
 </div>
 
@@ -135,6 +147,7 @@
     <span>上傳進度</span>
     <button onclick="document.getElementById('upload-panel').style.display='none'" title="關閉">✕</button>
   </div>
+  <div class="upload-summary" id="upload-summary" style="display:none"></div>
   <div class="upload-list" id="upload-list"></div>
 </div>
 
@@ -147,6 +160,7 @@
   <div class="lb-caption" id="lb-caption"></div>
 </div>
 
+<script src="upload.js?v=20260915"></script>
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
@@ -342,7 +356,16 @@
     document.getElementById('file-input').click();
   }
 
-  async function handleFiles(files) {
+  LimingUploader.init({
+    workerUrl: WORKER_URL,
+    listEl: document.getElementById('upload-list'),
+    statusEl: document.getElementById('upload-summary'),
+    noticeEl: document.getElementById('resume-notice'),
+    // 上傳結束時，如果還停在上傳的資料夾就重新整理
+    onDone: folderIds => { if (folderIds.includes(currentFolderId)) loadGallery(currentFolderId); },
+  });
+
+  function handleFiles(files) {
     if (!files || !files.length) return;
     const oversized = Array.from(files).filter(f => f.size > MAX_FILE_SIZE);
     if (oversized.length > 0) {
@@ -353,58 +376,11 @@
     document.getElementById('file-input').value = '';
     if (valid.length === 0) return;
     document.getElementById('upload-panel').style.display = '';
-    for (const file of valid) await uploadFile(file);
-    loadGallery(currentFolderId);
-  }
-
-  async function uploadFile(file) {
-    const fileName = file.name;
-    const mimeType = file.type || 'application/octet-stream';
-    const itemId = 'upload-' + Date.now() + Math.random();
-    const list = document.getElementById('upload-list');
-    const item = document.createElement('div');
-    item.className = 'upload-item';
-    item.id = itemId;
-    item.innerHTML = `<div class="upload-item-header"><div class="upload-item-name">${fileName}</div><div class="upload-item-status" id="${itemId}-status">準備中...</div></div><div class="progress-bar"><div class="progress-fill" id="${itemId}-bar" style="width:2%"></div></div>`;
-    list.prepend(item);
-    const bar = document.getElementById(`${itemId}-bar`);
-    const status = document.getElementById(`${itemId}-status`);
-    try {
-      const urlRes = await fetch(`${WORKER_URL}/upload-url`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName, mimeType, folderId: currentFolderId }),
-      });
-      if (!urlRes.ok) throw new Error('取得上傳網址失敗');
-      const { uploadUrl } = await urlRes.json();
-      if (!uploadUrl) throw new Error('上傳網址為空');
-
-      await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', uploadUrl, true);
-        xhr.setRequestHeader('Content-Type', mimeType);
-        xhr.upload.onprogress = (e) => {
-          if (!e.lengthComputable) return;
-          const pct = Math.max(2, Math.round((e.loaded / e.total) * 100));
-          bar.style.width = pct + '%';
-          status.textContent = `上傳中 ${pct}%`;
-        };
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error(`Google 回應 ${xhr.status}`));
-        };
-        xhr.onerror = () => reject(new Error(`網路錯誤（HTTP ${xhr.status || '無回應'}）`));
-        xhr.send(file);
-      });
-
-      bar.style.width = '100%';
-      bar.className = 'progress-fill done';
-      status.textContent = '完成 ✓';
-      status.className = 'upload-item-status done';
-    } catch (err) {
-      status.textContent = '上傳失敗：' + (err.message || err);
-      status.className = 'upload-item-status error';
-    }
+    // 分段續傳、斷線自動繼續、略過已存在的檔案都在 upload.js 處理
+    LimingUploader.add(valid.map(file => ({ file })), {
+      folderId: currentFolderId,
+      folderName: document.getElementById('folder-name-display').textContent,
+    });
   }
 
   // ── 複製連結 ──────────────────────────────
