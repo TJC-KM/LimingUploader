@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="icon" type="image/png" href="logo_10th.png">
+<title>A4 圖片列印 — 黎明寶庫</title>
+<meta property="og:site_name" content="黎明寶庫">
+<meta property="og:title" content="A4 圖片列印">
+<meta property="og:description" content="手機選照片，旋轉、縮放後用 A4 印出">
+<meta property="og:image" content="https://tjc-km.github.io/LimingUploader/logo_10th.png">
+<meta property="og:type" content="website">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; min-height: 100vh; color: #222; }
+  button { font-family: inherit; cursor: pointer; touch-action: manipulation; }
+  button:disabled { opacity: 0.45; cursor: default; }
+  [hidden] { display: none !important; }
+  .container { max-width: 480px; margin: 0 auto; padding: 16px 16px 150px; }
+
+  /* 頂部導覽列 */
+  .top-bar { background: #fff; border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #eee; }
+  .top-bar h1 { font-size: 16px; font-weight: 600; }
+  .back-link { font-size: 13px; color: #378ADD; text-decoration: none; }
+
+  .line-tip { font-size: 13px; color: #876800; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; line-height: 1.5; }
+
+  /* 選圖 */
+  .pick-card { background: #fff; border: 2px dashed #ddd; border-radius: 12px; padding: 40px 20px; text-align: center; }
+  .pick-icon { font-size: 40px; margin-bottom: 10px; }
+  .pick-text { font-size: 15px; color: #444; margin-bottom: 4px; }
+  .pick-hint { font-size: 12px; color: #aaa; margin-bottom: 18px; }
+  .btn-primary { padding: 12px 28px; background: #378ADD; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; }
+  .btn-primary:active { background: #2d72c0; }
+
+  /* A4 預覽 */
+  .preview-wrap { background: #e4e4e4; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+  #preview { display: block; width: 100%; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.15); }
+
+  /* 調整控制 */
+  .controls { background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 6px 16px 14px; }
+  .ctl-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; }
+  .ctl-row + .ctl-row { border-top: 1px solid #f3f3f3; }
+  .ctl-label { font-size: 13px; color: #888; width: 34px; flex-shrink: 0; }
+  .btn-group { display: flex; gap: 8px; flex: 1; }
+  .btn-ctl { flex: 1; padding: 10px 0; border: 1px solid #ddd; background: #fff; border-radius: 8px; font-size: 14px; color: #333; }
+  .btn-ctl:active { background: #f0f7ff; }
+  .btn-ctl.active { border-color: #378ADD; background: #f0f7ff; color: #378ADD; font-weight: 600; }
+  .btn-step { width: 38px; height: 38px; flex-shrink: 0; border: 1px solid #ddd; background: #fff; border-radius: 8px; font-size: 18px; color: #333; }
+  .btn-step:active { background: #f0f7ff; }
+  #zoom-slider { flex: 1; min-width: 0; accent-color: #378ADD; }
+  .zoom-val { width: 42px; flex-shrink: 0; text-align: right; font-size: 13px; color: #555; font-variant-numeric: tabular-nums; }
+  .btn-change { margin-top: 6px; width: 100%; padding: 10px; background: none; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; color: #666; }
+
+  /* 底部動作列 */
+  .action-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: rgba(255,255,255,0.97); border-top: 1px solid #eee; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+  .action-inner { max-width: 480px; margin: 0 auto; }
+  .action-btns { display: flex; gap: 10px; }
+  .btn-print { flex: 1.3; padding: 13px; background: #378ADD; color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; }
+  .btn-print:active { background: #2d72c0; }
+  .btn-save { flex: 1; padding: 13px; background: #fff; color: #378ADD; border: 1px solid #378ADD; border-radius: 10px; font-size: 15px; font-weight: 600; }
+  .action-hint { font-size: 11px; color: #999; margin-top: 6px; text-align: center; line-height: 1.5; }
+
+  /* 長按存圖（不支援分享時的備案） */
+  .save-overlay { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.88); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px; }
+  .save-overlay p { color: #fff; font-size: 14px; text-align: center; line-height: 1.5; }
+  .save-overlay img { max-width: 100%; max-height: 70vh; background: #fff; -webkit-touch-callout: default; }
+  .btn-close { padding: 10px 32px; background: #fff; color: #333; border: none; border-radius: 10px; font-size: 14px; }
+
+  .toast { position: fixed; left: 50%; bottom: 130px; transform: translateX(-50%); z-index: 60; background: rgba(0,0,0,0.82); color: #fff; font-size: 13px; padding: 9px 16px; border-radius: 99px; max-width: 90vw; text-align: center; line-height: 1.4; }
+
+  /* 列印：只印產生好的 A4 圖 */
+  #print-sheet { display: none; }
+  @page { size: A4 portrait; margin: 0; }
+  @media print {
+    html, body { margin: 0 !important; padding: 0 !important; min-height: 0 !important; background: #fff !important; }
+    .app, .save-overlay, .toast { display: none !important; }
+    #print-sheet { display: block; position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+    #print-img { display: block; width: 100%; height: 100%; object-fit: contain; object-position: top center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="container">
+    <div class="top-bar">
+      <h1>🖨️ A4 圖片列印</h1>
+      <a class="back-link" href="./">← 回寶庫</a>
+    </div>
+
+    <div class="line-tip" id="line-tip" hidden>📱 LINE 裡沒辦法列印，請點右上角選單，改用瀏覽器開啟這個頁面。</div>
+
+    <!-- 選圖 -->
+    <div class="pick-card" id="pick-card">
+      <div class="pick-icon">📷</div>
+      <div class="pick-text">選一張照片，排成 A4 印出來</div>
+      <div class="pick-hint">照片只在手機上處理，不會上傳</div>
+      <button class="btn-primary" id="pick-btn" onclick="pickFile()">選擇照片</button>
+    </div>
+
+    <!-- 預覽與調整 -->
+    <div id="editor" hidden>
+      <div class="preview-wrap"><canvas id="preview"></canvas></div>
+      <div class="controls">
+        <div class="ctl-row">
+          <span class="ctl-label">旋轉</span>
+          <div class="btn-group">
+            <button class="btn-ctl" onclick="rotate(-90)">↺ 左轉</button>
+            <button class="btn-ctl" onclick="rotate(90)">↻ 右轉</button>
+          </div>
+        </div>
+        <div class="ctl-row">
+          <span class="ctl-label">位置</span>
+          <div class="btn-group">
+            <button class="btn-ctl" data-pos="top" onclick="setPosition('top')">上</button>
+            <button class="btn-ctl" data-pos="middle" onclick="setPosition('middle')">中</button>
+            <button class="btn-ctl" data-pos="bottom" onclick="setPosition('bottom')">下</button>
+          </div>
+        </div>
+        <div class="ctl-row">
+          <span class="ctl-label">大小</span>
+          <button class="btn-step" id="zoom-minus" onclick="stepZoom(-ZOOM_STEP)">−</button>
+          <input type="range" id="zoom-slider" min="10" max="100" step="1" value="100" oninput="setZoom(this.value)">
+          <button class="btn-step" id="zoom-plus" onclick="stepZoom(ZOOM_STEP)">＋</button>
+          <span class="zoom-val" id="zoom-val">100%</span>
+        </div>
+        <button class="btn-change" onclick="pickFile()">換一張照片</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="action-bar" id="action-bar" hidden>
+    <div class="action-inner">
+      <div class="action-btns">
+        <button class="btn-print" id="print-btn" onclick="doPrint()">🖨️ 列印</button>
+        <button class="btn-save" id="save-btn" onclick="doSave()">💾 存成圖片</button>
+      </div>
+      <div class="action-hint">列印時紙張請選 A4。按「列印」沒反應，就改用「存成圖片」再從相簿列印。</div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept="image/*" style="display:none" onchange="onFileChosen(this)">
+
+<div class="save-overlay" id="save-overlay" hidden>
+  <p>長按圖片，選「加入照片」或「下載圖片」</p>
+  <img id="save-img" alt="A4 列印圖">
+  <button class="btn-close" onclick="closeSaveOverlay()">關閉</button>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<div id="print-sheet"><img id="print-img" alt=""></div>
+
+<script>
+  const PAGE_W = 210, PAGE_H = 297;   // A4（mm）
+  const MARGIN = 10;                  // 四邊安全邊界（mm），避開印表機印不到的區域
+  const BOX_W = PAGE_W - MARGIN * 2;
+  const BOX_H = PAGE_H - MARGIN * 2;
+  const OUTPUT_DPI = 200;
+  const OUT_W = Math.round(PAGE_W / 25.4 * OUTPUT_DPI);   // 1654
+  const OUT_H = Math.round(PAGE_H / 25.4 * OUTPUT_DPI);   // 2339
+  const MAX_SRC_LONG = 2400;   // 來源圖長邊上限：200 DPI 下可用範圍長邊約 2181 px，再留一點餘裕
+  const AREA_CAP = 12000000;   // 單一 canvas 面積上限：iPhone 約 1670 萬像素，超過會畫成空白
+  const ZOOM_MIN = 10, ZOOM_MAX = 100, ZOOM_STEP = 5;
+
+  // levels：來源圖與 1/2、1/4… 縮圖鏈，繪製時挑最接近的尺寸，縮小時才不會鋸齒
+  const state = { levels: null, srcW: 0, srcH: 0, rotation: 0, zoom: 100, position: 'top' };
+  let settingsVersion = 0;
+  let output = { blob: null, url: null, version: -1 };
+  let pendingOutput = null;
+  let outputTimer = 0;
+
+  // ── LINE 內建瀏覽器無法列印，自動改開外部瀏覽器 ──────────
+
+  (function checkLineBrowser() {
+    if (!/Line\//i.test(navigator.userAgent || '')) return;
+    const u = new URL(location.href);
+    if (u.searchParams.get('openExternalBrowser') !== '1') {
+      u.searchParams.set('openExternalBrowser', '1');
+      location.replace(u.toString());
+      return;
+    }
+    document.getElementById('line-tip').hidden = false;
+  })();
+
+  // ── 選圖與讀取 ──────────────────────────────
+
+  function pickFile() {
+    document.getElementById('file-input').click();
+  }
+
+  function onFileChosen(input) {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (file) loadImage(file);
+  }
+
+  function loadImage(file) {
+    const pickBtn = document.getElementById('pick-btn');
+    pickBtn.disabled = true;
+    pickBtn.textContent = '讀取中...';
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    const done = () => {
+      URL.revokeObjectURL(url);
+      pickBtn.disabled = false;
+      pickBtn.textContent = '選擇照片';
+    };
+    img.onload = () => {
+      try {
+        if (!img.naturalWidth || !img.naturalHeight) throw new Error('empty image');
+        const levels = buildLevels(img);
+        if (looksBlank(levels[levels.length - 1])) {
+          levels.forEach(freeCanvas);
+          throw new Error('blank canvas');
+        }
+        if (state.levels) state.levels.forEach(freeCanvas);
+        state.levels = levels;
+        state.srcW = levels[0].width;
+        state.srcH = levels[0].height;
+        state.rotation = 0;
+        state.zoom = 100;
+        state.position = 'top';
+        document.getElementById('pick-card').hidden = true;
+        document.getElementById('editor').hidden = false;
+        document.getElementById('action-bar').hidden = false;
+        settingsChanged();
+      } catch (e) {
+        toast('照片太大或格式不支援，請換一張試試');
+      } finally {
+        done();
+      }
+    };
+    img.onerror = () => {
+      done();
+      toast('無法讀取這張圖片，請改選 JPG 或 PNG');
+    };
+    img.src = url;
+  }
+
+  function makeCanvas(w, h) {
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    return c;
+  }
+
+  function resizeTo(src, w, h) {
+    const c = makeCanvas(w, h);
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(src, 0, 0, w, h);
+    return c;
+  }
+
+  // iOS 對 canvas 總記憶體有上限，用完的 canvas 要主動釋放
+  function freeCanvas(c) {
+    c.width = 0;
+    c.height = 0;
+  }
+
+  // 瀏覽器畫 <img> 時會套用 EXIF 方向，所以轉成 canvas 後照片就是正的
+  function buildLevels(img) {
+    let w = img.naturalWidth, h = img.naturalHeight;
+    let cur = img;
+    const step = (nw, nh) => {
+      const next = resizeTo(cur, nw, nh);
+      if (cur !== img) freeCanvas(cur);
+      cur = next;
+      w = nw;
+      h = nh;
+    };
+    if (w * h > AREA_CAP) {
+      const s = Math.sqrt(AREA_CAP / (w * h));
+      step(Math.max(1, Math.floor(w * s)), Math.max(1, Math.floor(h * s)));
+    }
+    while (Math.max(w, h) / 2 >= MAX_SRC_LONG) step(Math.round(w / 2), Math.round(h / 2));
+    if (Math.max(w, h) > MAX_SRC_LONG) {
+      const s = MAX_SRC_LONG / Math.max(w, h);
+      step(Math.round(w * s), Math.round(h * s));
+    }
+    if (cur === img) step(w, h);
+
+    const levels = [cur];
+    while (Math.max(w, h) > 128) {
+      w = Math.max(1, Math.round(w / 2));
+      h = Math.max(1, Math.round(h / 2));
+      cur = resizeTo(cur, w, h);
+      levels.push(cur);
+    }
+    return levels;
+  }
+
+  // 超過 canvas 上限時瀏覽器不會報錯，只會畫出全透明的圖
+  function looksBlank(canvas) {
+    try {
+      const d = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+      for (let i = 3; i < d.length; i += 4) if (d[i] !== 0) return false;
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function pickLevel(targetLong) {
+    const lv = state.levels;
+    for (let i = lv.length - 1; i >= 0; i--) {
+      if (Math.max(lv[i].width, lv[i].height) >= targetLong) return lv[i];
+    }
+    return lv[0];
+  }
+
+  // ── 版面計算（單位 mm） ──────────────────────
+
+  function computeLayout() {
+    const turned = state.rotation % 180 !== 0;
+    const iw = turned ? state.srcH : state.srcW;
+    const ih = turned ? state.srcW : state.srcH;
+    // 100% = 剛好放滿安全範圍
+    const s = Math.min(BOX_W / iw, BOX_H / ih) * state.zoom / 100;
+    const w = iw * s, h = ih * s;
+    const x = MARGIN + (BOX_W - w) / 2;
+    const y = state.position === 'top' ? MARGIN
+            : state.position === 'middle' ? MARGIN + (BOX_H - h) / 2
+            : MARGIN + BOX_H - h;
+    return { x, y, w, h, turned };
+  }
+
+  function drawPage(ctx, pxPerMm, withGuides) {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    if (state.levels) {
+      const L = computeLayout();
+      // 旋轉前的繪製寬高
+      const dw = (L.turned ? L.h : L.w) * pxPerMm;
+      const dh = (L.turned ? L.w : L.h) * pxPerMm;
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.translate((L.x + L.w / 2) * pxPerMm, (L.y + L.h / 2) * pxPerMm);
+      ctx.rotate(state.rotation * Math.PI / 180);
+      ctx.drawImage(pickLevel(Math.max(dw, dh)), -dw / 2, -dh / 2, dw, dh);
+      ctx.restore();
+    }
+    if (withGuides) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(55,138,221,0.55)';
+      ctx.lineWidth = Math.max(1, pxPerMm * 0.3);
+      ctx.setLineDash([pxPerMm * 2, pxPerMm * 1.5]);
+      ctx.strokeRect(MARGIN * pxPerMm, MARGIN * pxPerMm, BOX_W * pxPerMm, BOX_H * pxPerMm);
+      ctx.restore();
+    }
+  }
+
+  // ── 預覽 ──────────────────────────────────
+
+  let previewRaf = 0;
+  function renderPreview() {
+    cancelAnimationFrame(previewRaf);
+    previewRaf = requestAnimationFrame(() => {
+      const canvas = document.getElementById('preview');
+      const cssW = canvas.clientWidth;
+      if (!cssW) return;
+      const cssH = Math.round(cssW * PAGE_H / PAGE_W);
+      const dpr = Math.min(window.devicePixelRatio || 1, 3);
+      canvas.style.height = cssH + 'px';
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssH * dpr);
+      drawPage(canvas.getContext('2d'), canvas.width / PAGE_W, true);
+    });
+  }
+
+  window.addEventListener('resize', () => { if (state.levels) renderPreview(); });
+
+  // ── 調整 ──────────────────────────────────
+
+  function rotate(delta) {
+    state.rotation = (state.rotation + delta + 360) % 360;
+    state.zoom = 100;
+    settingsChanged();
+  }
+
+  function setPosition(pos) {
+    state.position = pos;
+    settingsChanged();
+  }
+
+  function setZoom(value) {
+    state.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(Number(value))));
+    settingsChanged();
+  }
+
+  function stepZoom(delta) {
+    setZoom(state.zoom + delta);
+  }
+
+  function settingsChanged() {
+    settingsVersion++;
+    document.getElementById('zoom-slider').value = state.zoom;
+    document.getElementById('zoom-val').textContent = state.zoom + '%';
+    document.getElementById('zoom-minus').disabled = state.zoom <= ZOOM_MIN;
+    document.getElementById('zoom-plus').disabled = state.zoom >= ZOOM_MAX;
+    document.querySelectorAll('[data-pos]').forEach(b => b.classList.toggle('active', b.dataset.pos === state.position));
+    renderPreview();
+    // 停手後先把列印圖準備好，按下按鈕時才能立刻列印或分享
+    clearTimeout(outputTimer);
+    outputTimer = setTimeout(() => { ensureOutput().catch(() => {}); }, 300);
+  }
+
+  // ── 產生 A4 列印圖 ────────────────────────────
+
+  function outputReady() {
+    return output.blob && output.version === settingsVersion;
+  }
+
+  function ensureOutput() {
+    if (outputReady()) return Promise.resolve(output);
+    const version = settingsVersion;
+    if (pendingOutput && pendingOutput.version === version) return pendingOutput.promise;
+    const promise = (async () => {
+      const canvas = makeCanvas(OUT_W, OUT_H);
+      drawPage(canvas.getContext('2d'), OUT_W / PAGE_W, false);
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob(b => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', 0.92);
+      });
+      freeCanvas(canvas);
+      // 產生期間設定又改了，重做一次
+      if (version !== settingsVersion) return ensureOutput();
+      const url = URL.createObjectURL(blob);
+      const img = document.getElementById('print-img');
+      img.src = url;
+      try { await img.decode(); } catch (e) { /* decode 失敗時圖片仍會載入 */ }
+      if (output.url) URL.revokeObjectURL(output.url);
+      output = { blob, url, version };
+      return output;
+    })();
+    pendingOutput = { version, promise };
+    return promise;
+  }
+
+  function setActionsBusy(busy) {
+    document.getElementById('print-btn').disabled = busy;
+    document.getElementById('save-btn').disabled = busy;
+  }
+
+  async function doPrint() {
+    if (!state.levels) return;
+    try {
+      if (!outputReady()) {
+        setActionsBusy(true);
+        await ensureOutput();
+      }
+      window.print();
+    } catch (e) {
+      toast('產生列印圖失敗，請再試一次');
+    } finally {
+      setActionsBusy(false);
+    }
+  }
+
+  async function doSave() {
+    if (!state.levels) return;
+    // 分享必須在點擊當下呼叫，圖還沒準備好時中間多了等待，iPhone 可能會拒絕
+    const wasReady = outputReady();
+    let out = output;
+    if (!wasReady) {
+      setActionsBusy(true);
+      try {
+        out = await ensureOutput();
+      } catch (e) {
+        toast('產生圖片失敗，請再試一次');
+        return;
+      } finally {
+        setActionsBusy(false);
+      }
+    }
+    const file = new File([out.blob], outputFileName(), { type: 'image/jpeg' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file] });
+        return;
+      } catch (e) {
+        if (e.name === 'AbortError') return;
+        if (!wasReady && e.name === 'NotAllowedError') {
+          toast('圖片已準備好，請再按一次「存成圖片」');
+          return;
+        }
+      }
+    }
+    document.getElementById('save-img').src = out.url;
+    document.getElementById('save-overlay').hidden = false;
+  }
+
+  function closeSaveOverlay() {
+    document.getElementById('save-overlay').hidden = true;
+  }
+
+  function outputFileName() {
+    const d = new Date();
+    const p = n => String(n).padStart(2, '0');
+    return `A4列印_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.jpg`;
+  }
+
+  // ── 工具函式 ─────────────────────────────
+
+  let toastTimer = 0;
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.hidden = true; }, 3000);
+  }
+</script>
+</body>
+</html>
