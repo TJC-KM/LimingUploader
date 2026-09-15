@@ -61,12 +61,6 @@
   .btn-save { flex: 1; padding: 13px; background: #fff; color: #378ADD; border: 1px solid #378ADD; border-radius: 10px; font-size: 15px; font-weight: 600; }
   .action-hint { font-size: 11px; color: #999; margin-top: 6px; text-align: center; line-height: 1.5; }
 
-  /* 長按存圖（不支援分享時的備案） */
-  .save-overlay { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.88); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 20px; }
-  .save-overlay p { color: #fff; font-size: 14px; text-align: center; line-height: 1.5; }
-  .save-overlay img { max-width: 100%; max-height: 70vh; background: #fff; -webkit-touch-callout: default; }
-  .btn-close { padding: 10px 32px; background: #fff; color: #333; border: none; border-radius: 10px; font-size: 14px; }
-
   .toast { position: fixed; left: 50%; bottom: 130px; transform: translateX(-50%); z-index: 60; background: rgba(0,0,0,0.82); color: #fff; font-size: 13px; padding: 9px 16px; border-radius: 99px; max-width: 90vw; text-align: center; line-height: 1.4; }
 
   /* 列印：只印產生好的 A4 圖 */
@@ -74,7 +68,7 @@
   @page { size: A4 portrait; margin: 0; }
   @media print {
     html, body { margin: 0 !important; padding: 0 !important; min-height: 0 !important; background: #fff !important; }
-    .app, .save-overlay, .toast { display: none !important; }
+    .app, .toast { display: none !important; }
     #print-sheet { display: block; position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
     #print-img { display: block; width: 100%; height: 100%; object-fit: contain; object-position: top center; }
   }
@@ -134,20 +128,14 @@
     <div class="action-inner">
       <div class="action-btns">
         <button class="btn-print" id="print-btn" onclick="doPrint()">🖨️ 列印</button>
-        <button class="btn-save" id="save-btn" onclick="doSave()">💾 存成圖片</button>
+        <button class="btn-save" id="save-btn" onclick="doSavePdf()">📄 存成 PDF</button>
       </div>
-      <div class="action-hint">列印時紙張請選 A4。按「列印」沒反應，就改用「存成圖片」再從相簿列印。</div>
+      <div class="action-hint">列印時紙張請選 A4。按「列印」沒反應，就改用「存成 PDF」，開啟 PDF 後再列印。</div>
     </div>
   </div>
 </div>
 
 <input type="file" id="file-input" accept="image/*" style="display:none" onchange="onFileChosen(this)">
-
-<div class="save-overlay" id="save-overlay" hidden>
-  <p>長按圖片，選「加入照片」或「下載圖片」</p>
-  <img id="save-img" alt="A4 列印圖">
-  <button class="btn-close" onclick="closeSaveOverlay()">關閉</button>
-</div>
 
 <div class="toast" id="toast" hidden></div>
 
@@ -168,7 +156,7 @@
   // levels：來源圖與 1/2、1/4… 縮圖鏈，繪製時挑最接近的尺寸，縮小時才不會鋸齒
   const state = { levels: null, srcW: 0, srcH: 0, rotation: 0, zoom: 100, position: 'top' };
   let settingsVersion = 0;
-  let output = { blob: null, url: null, version: -1 };
+  let output = { blob: null, pdf: null, url: null, version: -1 };
   let pendingOutput = null;
   let outputTimer = 0;
 
@@ -429,12 +417,14 @@
       freeCanvas(canvas);
       // 產生期間設定又改了，重做一次
       if (version !== settingsVersion) return ensureOutput();
+      const pdf = buildPdf(new Uint8Array(await new Response(blob).arrayBuffer()), OUT_W, OUT_H);
+      if (version !== settingsVersion) return ensureOutput();
       const url = URL.createObjectURL(blob);
       const img = document.getElementById('print-img');
       img.src = url;
       try { await img.decode(); } catch (e) { /* decode 失敗時圖片仍會載入 */ }
       if (output.url) URL.revokeObjectURL(output.url);
-      output = { blob, url, version };
+      output = { blob, pdf, url, version };
       return output;
     })();
     pendingOutput = { version, promise };
@@ -461,9 +451,10 @@
     }
   }
 
-  async function doSave() {
+  // 印表機收到圖片常會切成慢速的相片模式，PDF 則走一般文件模式
+  async function doSavePdf() {
     if (!state.levels) return;
-    // 分享必須在點擊當下呼叫，圖還沒準備好時中間多了等待，iPhone 可能會拒絕
+    // 分享必須在點擊當下呼叫，PDF 還沒準備好時中間多了等待，iPhone 可能會拒絕
     const wasReady = outputReady();
     let out = output;
     if (!wasReady) {
@@ -471,37 +462,85 @@
       try {
         out = await ensureOutput();
       } catch (e) {
-        toast('產生圖片失敗，請再試一次');
+        toast('產生 PDF 失敗，請再試一次');
         return;
       } finally {
         setActionsBusy(false);
       }
     }
-    const file = new File([out.blob], outputFileName(), { type: 'image/jpeg' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({ files: [file] });
-        return;
-      } catch (e) {
-        if (e.name === 'AbortError') return;
-        if (!wasReady && e.name === 'NotAllowedError') {
-          toast('圖片已準備好，請再按一次「存成圖片」');
+    const name = outputFileName();
+    // iPhone 的分享選單可以直接「列印」；Android 的分享選單不能列印，直接下載較順
+    if (!/Android/i.test(navigator.userAgent || '')) {
+      const file = new File([out.pdf], name, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file] });
           return;
+        } catch (e) {
+          if (e.name === 'AbortError') return;
+          if (!wasReady && e.name === 'NotAllowedError') {
+            toast('PDF 已準備好，請再按一次「存成 PDF」');
+            return;
+          }
         }
       }
     }
-    document.getElementById('save-img').src = out.url;
-    document.getElementById('save-overlay').hidden = false;
+    downloadBlob(out.pdf, name);
+    toast('PDF 已下載，開啟後即可列印');
   }
 
-  function closeSaveOverlay() {
-    document.getElementById('save-overlay').hidden = true;
+  function downloadBlob(blob, name) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   }
 
   function outputFileName() {
     const d = new Date();
     const p = n => String(n).padStart(2, '0');
-    return `A4列印_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.jpg`;
+    return `A4列印_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.pdf`;
+  }
+
+  // 把 JPEG 原封不動包成一頁 A4 的 PDF（DCTDecode 直接嵌入，不重新壓縮）
+  function buildPdf(jpegBytes, imgW, imgH) {
+    const enc = new TextEncoder();
+    const pageW = (PAGE_W / 25.4 * 72).toFixed(2);   // 595.28 pt
+    const pageH = (PAGE_H / 25.4 * 72).toFixed(2);   // 841.89 pt
+    const parts = [];
+    const offsets = [];
+    let size = 0;
+    const push = data => {
+      const bytes = typeof data === 'string' ? enc.encode(data) : data;
+      parts.push(bytes);
+      size += bytes.length;
+    };
+    const obj = (n, body) => {
+      offsets[n] = size;
+      push(`${n} 0 obj\n${body}\nendobj\n`);
+    };
+    push('%PDF-1.4\n');
+    push(new Uint8Array([0x25, 0xE2, 0xE3, 0xCF, 0xD3, 0x0A]));   // 二進位標記
+    obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+    obj(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+    obj(3, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`);
+    offsets[4] = size;
+    push(`4 0 obj\n<< /Type /XObject /Subtype /Image /Width ${imgW} /Height ${imgH} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`);
+    push(jpegBytes);
+    push('\nendstream\nendobj\n');
+    // 圖片鋪滿整頁：版面與白邊已經畫在 JPEG 裡
+    const content = `q ${pageW} 0 0 ${pageH} 0 0 cm /Im0 Do Q`;
+    obj(5, `<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
+    const xrefAt = size;
+    let xref = 'xref\n0 6\n0000000000 65535 f \n';
+    for (let i = 1; i <= 5; i++) xref += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+    push(xref);
+    push(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefAt}\n%%EOF\n`);
+    return new Blob(parts, { type: 'application/pdf' });
   }
 
   // ── 工具函式 ─────────────────────────────
