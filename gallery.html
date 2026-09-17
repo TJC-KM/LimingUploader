@@ -24,6 +24,15 @@
   .btn-copy-link { padding: 7px 14px; background: #378ADD; color: #fff; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
   .btn-copy-link:hover { background: #2d72c0; }
   .btn-copy-link.copied { background: #3B6D11; }
+  .header-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .btn-drive-link { padding: 6px 13px; background: #fff; color: #333; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+  .btn-drive-link:hover { border-color: #378ADD; color: #378ADD; }
+  /* 手機放不下名稱加三個按鈕：名稱一行，按鈕另起一行平分寬度 */
+  @media (max-width: 480px) {
+    .gallery-header { flex-wrap: wrap; }
+    .header-left, .header-actions { flex: 1 1 100%; }
+    .header-actions button { flex: 1; }
+  }
 
   /* Section labels */
   .section-label { font-size: 12px; color: #aaa; padding: 14px 0 6px; }
@@ -126,8 +135,9 @@
       <button class="btn-back" id="back-btn" style="display:none" onclick="goBack()">← 返回</button>
       <div class="page-title">📁 <span class="folder-name-span" id="folder-name-display">黎明寶庫</span></div>
     </div>
-    <div style="display:flex;gap:6px;flex-shrink:0;">
+    <div class="header-actions">
       <button class="btn-upload" id="upload-btn" onclick="openUpload()">📤 上傳</button>
+      <button class="btn-drive-link" onclick="openDriveFolder()" title="在 Google 雲端硬碟開啟（需有權限）">☁️ G雲端</button>
       <button class="btn-copy-link" id="copy-btn" onclick="copyLink()">🔗 分享</button>
     </div>
   </div>
@@ -381,6 +391,14 @@
       folderId: currentFolderId,
       folderName: document.getElementById('folder-name-display').textContent,
     });
+  }
+
+  // ── Google 雲端 ───────────────────────────
+
+  // 開啟目前資料夾的 Google 雲端硬碟（需有權限），檔案很多時從這裡上傳比較穩定
+  function openDriveFolder() {
+    if (!currentFolderId) return;
+    openExternal(`https://drive.google.com/drive/folders/${currentFolderId}`);
   }
 
   // ── 複製連結 ──────────────────────────────
