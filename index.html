@@ -53,10 +53,6 @@
   .folder-card.active { border: 2px solid #378ADD; background: #f0f7ff; }
   .folder-card .icon { font-size: 22px; margin-bottom: 6px; }
   .folder-card .name { font-size: 13px; font-weight: 500; word-break: break-word; line-height: 1.3; }
-  .add-folder-card { background: #fafafa; border: 1px dashed #ccc; border-radius: 12px; padding: 12px 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; transition: border-color 0.15s; }
-  .add-folder-card:hover { border-color: #378ADD; }
-  .add-folder-card .plus { font-size: 22px; color: #aaa; }
-  .add-folder-card .label { font-size: 13px; color: #888; }
   .login-hint { cursor: pointer; }
 
   /* 檔案列表 */
@@ -74,19 +70,30 @@
   .file-date { font-size: 11px; color: #aaa; flex-shrink: 0; }
   .empty-files { padding: 24px; text-align: center; color: #aaa; font-size: 13px; }
 
-  /* 上傳區 */
-  .upload-section { background: #fff; border-radius: 12px; border: 1px solid #eee; padding: 20px; }
-  .upload-zone { border: 2px dashed #ddd; border-radius: 12px; padding: 28px 20px; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
-  .upload-zone:hover, .upload-zone.dragover { border-color: #378ADD; background: #f0f7ff; }
-  .upload-zone .upload-icon { font-size: 32px; margin-bottom: 10px; }
-  .upload-zone .upload-text { font-size: 14px; color: #444; margin-bottom: 4px; }
-  .upload-zone .upload-hint { font-size: 12px; color: #aaa; }
-  .upload-btn-label { display: inline-block; margin-top: 12px; padding: 8px 20px; background: #378ADD; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  /* 主要動作：新增資料夾／上傳檔案／Google 雲端，三個一樣大 */
+  .action-section { background: #fff; border-radius: 12px; border: 1px solid #eee; padding: 14px; margin-bottom: 20px; }
+  .action-grid { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 10px; }
+  .action-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 8px; background: #f7faff; border: 1px solid #dbe7f5; border-radius: 12px; cursor: pointer; text-align: center; font: inherit; color: inherit; transition: border-color 0.15s, background 0.15s; }
+  .action-card:hover, .action-card.dragover { border-color: #378ADD; background: #eaf3fd; }
+  .action-icon { display: block; font-size: 26px; line-height: 1.2; }
+  .action-title { display: block; font-size: 14px; font-weight: 600; color: #333; }
+  .action-desc { display: block; font-size: 11px; color: #888; line-height: 1.4; }
+  @media (max-width: 480px) {
+    .action-grid { gap: 8px; }
+    .action-card { padding: 12px 4px; }
+    .action-icon { font-size: 24px; }
+    .action-title { font-size: 13px; }
+  }
+
+  /* 現有資料：資料夾 + 檔案 */
+  .data-title { display: flex; align-items: center; font-size: 14px; font-weight: 600; color: #333; margin-bottom: 10px; }
+  .data-subtitle { font-size: 12px; color: #888; margin-bottom: 8px; }
   .login-hint { text-align: center; padding: 20px; background: #fffbe6; border-radius: 10px; border: 1px solid #ffe58f; }
   .login-hint p { font-size: 13px; color: #876800; margin-bottom: 12px; }
 
   /* 進度條 */
   .upload-list { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; max-height: 360px; overflow-y: auto; }
+  .upload-list:empty { display: none; }
   .upload-summary { margin-top: 14px; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.6; }
   .upload-summary.ok { background: #f0faf0; color: #3B6D11; border: 1px solid #cfe8cf; }
   .upload-summary.warn { background: #fff8e6; color: #876800; border: 1px solid #ffe58f; }
@@ -195,9 +202,6 @@
   /* 動態轉圈 */
   @keyframes spin { to { transform: rotate(360deg); } }
   .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #e0e0e0; border-top-color: #378ADD; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
-
-  /* 上傳目標資料夾 */
-  .upload-target { font-size: 12px; color: #888; margin-bottom: 10px; }
 </style>
 </head>
 <body>
@@ -206,7 +210,7 @@
 <div class="modal-overlay" id="folder-modal">
   <div class="modal">
     <h3>新增資料夾</h3>
-    <p>在目前位置建立新資料夾</p>
+    <p id="folder-modal-desc">建立新資料夾</p>
     <input type="text" id="folder-name-input" placeholder="資料夾名稱" />
     <div class="modal-btns">
       <button class="btn-secondary" onclick="closeFolderModal()">取消</button>
@@ -376,15 +380,38 @@
   <!-- 子資料夾 + 檔案畫面 -->
   <div id="folder-view" style="display:none">
     <div class="breadcrumb" id="breadcrumb"></div>
-    <div class="section-title">選擇資料夾<button class="sort-btn" id="sort-btn" onclick="toggleSort()">A→Z ▲</button><span id="folder-drive-btn"></span></div>
-    <div class="folder-grid" id="folder-grid"></div>
 
-    <div class="upload-section">
-      <div id="upload-area">
-        <div class="empty-files">點選下方資料夾進入</div>
+    <!-- 主要動作（放在路徑下方，三個一樣大） -->
+    <div class="action-section">
+      <div class="action-grid">
+        <button type="button" class="action-card" onclick="openFolderModal()">
+          <span class="action-icon">➕</span>
+          <span class="action-title">新增資料夾</span>
+          <span class="action-desc" id="new-folder-desc">建立活動資料夾</span>
+        </button>
+        <label class="action-card" id="upload-card" tabindex="0" title="也可以把檔案拖曳到這裡"
+               onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.querySelector('input').click(); }">
+          <input type="file" style="display:none" multiple onchange="handleFiles(Array.from(this.files)); this.value = ''">
+          <span class="action-icon">⬆️</span>
+          <span class="action-title">上傳檔案</span>
+          <span class="action-desc">少量檔案適用<br>約 20 個以內</span>
+        </label>
+        <button type="button" class="action-card" onclick="openDriveFolder()">
+          <span class="action-icon">☁️</span>
+          <span class="action-title">Google 雲端</span>
+          <span class="action-desc">檔案很多建議用<br>需有雲端權限</span>
+        </button>
       </div>
+      <div class="upload-line-tip" id="upload-line-tip" style="display:none">📱 目前在 LINE 裡開啟，切回聊天室會中斷上傳。大量上傳建議<a onclick="openExternal(location.href)">改用瀏覽器開啟</a></div>
       <div class="upload-summary" id="upload-summary" style="display:none"></div>
       <div class="upload-list" id="upload-list"></div>
+    </div>
+
+    <!-- 現有資料 -->
+    <div class="data-title">現有資料<button class="sort-btn" id="sort-btn" onclick="toggleSort()">A→Z ▲</button></div>
+    <div id="folder-block" style="display:none">
+      <div class="data-subtitle">資料夾</div>
+      <div class="folder-grid" id="folder-grid"></div>
     </div>
 
     <div class="file-section">
@@ -408,7 +435,7 @@
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
-  document.getElementById('version-footer').textContent = '最後發布時間：2026-09-15 00:00';
+  document.getElementById('version-footer').textContent = '最後發布時間：2026-09-17 00:00';
 
   let CATEGORIES = [];
 
@@ -483,12 +510,7 @@
     loadFolders();
     loadFiles(id);
     document.getElementById('sheet-btn').style.display = cat?.linePublish ? '' : 'none';
-    const noUpload = cat?.noUpload;
-    if (noUpload) {
-      document.getElementById('upload-area').innerHTML = '';
-    } else {
-      showUploadZone();
-    }
+    updateActionBar();
     history.pushState({ view: 'category', id, name }, '', '#' + name);
   }
 
@@ -516,18 +538,12 @@
     }
     renderBreadcrumb();
     loadFolders();
+    updateActionBar();
     if (currentFolderId) {
       loadFiles(currentFolderId);
       document.getElementById('current-folder-badge').textContent = currentFolderName;
-      showUploadZone();
     } else {
       document.getElementById('current-folder-badge').textContent = currentCategoryName;
-      const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
-      if (noUpload) {
-        document.getElementById('upload-area').innerHTML = '';
-      } else {
-        showUploadZone();
-      }
       loadFiles(currentCategoryId);
     }
     if (index < 0) {
@@ -559,14 +575,12 @@
     const data = await res.json();
     const grid = document.getElementById('folder-grid');
     grid.innerHTML = '';
-    const addCard = document.createElement('div');
-    addCard.className = 'add-folder-card';
-    addCard.innerHTML = `<div class="plus">＋</div><div class="label">新增資料夾</div>`;
-    addCard.onclick = openFolderModal;
-    grid.appendChild(addCard);
-    (data.files || []).sort((a, b) =>
+    const folders = (data.files || []).sort((a, b) =>
       sortAsc ? a.name.localeCompare(b.name, 'zh-TW') : b.name.localeCompare(a.name, 'zh-TW')
-    ).forEach(folder => {
+    );
+    // 沒有子資料夾就整塊隱藏，現有資料只顯示檔案
+    document.getElementById('folder-block').style.display = folders.length ? '' : 'none';
+    folders.forEach(folder => {
       const card = document.createElement('div');
       card.className = 'folder-card' + (folder.id === currentFolderId ? ' active' : '');
       card.innerHTML = `<div class="icon">📁</div><div class="name">${folder.name}</div>`;
@@ -596,14 +610,10 @@
     renderBreadcrumb();
     loadFolders();
     loadFiles(id);
-    const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
-    if (noUpload) {
-      document.getElementById('upload-area').innerHTML = '';
-    } else {
-      showUploadZone();
-    }
+    updateActionBar();
+    // 手機上捲回路徑，進入資料夾後先看到主要動作
     if (window.innerWidth <= 768) {
-      setTimeout(() => { document.querySelector('.file-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 300);
+      setTimeout(() => { document.getElementById('breadcrumb').scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 300);
     }
   }
 
@@ -616,6 +626,7 @@
     const placeholder = '活動名稱';
     const input = document.getElementById('folder-name-input');
     input.value = prefix + placeholder;
+    document.getElementById('folder-modal-desc').textContent = `在「${currentCategoryName}」底下建立新資料夾`;
     document.getElementById('folder-modal').classList.add('show');
     setTimeout(() => {
       input.focus();
@@ -678,6 +689,7 @@
     if (!_createdFolder) return;
     const { id, name } = _createdFolder;
     closeFolderCreatedModal();
+    folderStack = []; // 新資料夾建在類別底下，路徑要從類別重新開始
     selectFolder(id, name);
   }
 
@@ -743,26 +755,25 @@
     document.getElementById('current-folder-badge').textContent = `${data.files.length} 個檔案`;
   }
 
-  function showUploadZone() {
-    const area = document.getElementById('upload-area');
-    const targetName = currentFolderName || currentCategoryName || '目前資料夾';
-    area.innerHTML = `
-      <div class="upload-target">上傳至：📁 ${targetName}</div>
-      <div class="upload-zone" id="upload-zone">
-        <div class="upload-icon">⬆️</div>
-        <div class="upload-text">拖曳檔案到這裡</div>
-        <div class="upload-hint">支援大檔案，單檔最高 5 GB；中斷後重選同一批檔案可接續上傳</div>
-        <label class="upload-btn-label">選擇檔案
-          <input type="file" style="display:none" multiple onchange="handleFiles(Array.from(this.files)); this.value = ''">
-        </label>
-      </div>
-      ${LimingUploader.isLineBrowser() ? '<div class="upload-line-tip">📱 目前在 LINE 裡開啟，切回聊天室會中斷上傳。大量上傳建議<a onclick="openExternal(location.href)">改用瀏覽器開啟</a></div>' : ''}
-    `;
-    const zone = document.getElementById('upload-zone');
-    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
-    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-    zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+  // 依目前類別更新主要動作區：不開放上傳的類別隱藏「上傳檔案」
+  function updateActionBar() {
+    const noUpload = CATEGORIES.find(c => c.id === currentCategoryId)?.noUpload;
+    document.getElementById('upload-card').style.display = noUpload ? 'none' : '';
+    document.getElementById('upload-line-tip').style.display = !noUpload && LimingUploader.isLineBrowser() ? '' : 'none';
+    // 新增的資料夾一律建在類別底下（見 confirmCreateFolder）
+    document.getElementById('new-folder-desc').textContent = `建在「${currentCategoryName}」`;
   }
+
+  // 開啟目前資料夾的 Google 雲端硬碟（需有權限）；檔案很多時從雲端硬碟上傳比較穩定
+  function openDriveFolder() {
+    openExternal(`https://drive.google.com/drive/folders/${currentFolderId || currentCategoryId}`);
+  }
+
+  // 桌機可以直接把檔案拖曳到「上傳檔案」
+  const uploadCard = document.getElementById('upload-card');
+  uploadCard.addEventListener('dragover', e => { e.preventDefault(); uploadCard.classList.add('dragover'); });
+  uploadCard.addEventListener('dragleave', () => uploadCard.classList.remove('dragover'));
+  uploadCard.addEventListener('drop', e => { e.preventDefault(); uploadCard.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
 
   const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024;
 
@@ -871,8 +882,7 @@
       if (!LimingUploader.isBusy()) document.getElementById('upload-list').innerHTML = '';
       viewMode = 'grid'; updateViewToggleBtn(); renderBreadcrumb(); updateDriveBtn(); loadFolders(); loadFiles(state.id);
       document.getElementById('sheet-btn').style.display = cat?.linePublish ? '' : 'none';
-      const noUpload1 = cat?.noUpload;
-      if (noUpload1) { document.getElementById('upload-area').innerHTML = ''; } else { showUploadZone(); }
+      updateActionBar();
     } else if (state.view === 'folder') {
       currentCategoryId = state.categoryId; currentCategoryName = state.categoryName;
       folderStack = state.stack;
@@ -883,8 +893,7 @@
       renderBreadcrumb(); updateDriveBtn(); loadFolders(); loadFiles(currentFolderId);
       const cat2 = CATEGORIES.find(c => c.id === currentCategoryId);
       document.getElementById('sheet-btn').style.display = cat2?.linePublish ? '' : 'none';
-      const noUpload2 = cat2?.noUpload;
-      if (noUpload2) { document.getElementById('upload-area').innerHTML = ''; } else { showUploadZone(); }
+      updateActionBar();
     }
   });
 
@@ -1077,11 +1086,8 @@
 
   function updateDriveBtn() {
     const catBtn = document.getElementById('category-drive-btn');
-    const folderBtn = document.getElementById('folder-drive-btn');
     const url = currentCategoryId ? `https://drive.google.com/drive/folders/${currentCategoryId}` : 'https://drive.google.com';
-    const btnHtml = `<button class="btn-drive" title="在 Google Drive 中開啟" onclick="openExternal('${url}')">☁️</button>`;
-    if (catBtn) catBtn.innerHTML = btnHtml;
-    if (folderBtn) folderBtn.innerHTML = btnHtml;
+    if (catBtn) catBtn.innerHTML = `<button class="btn-drive" title="在 Google Drive 中開啟" onclick="openExternal('${url}')">☁️</button>`;
   }
 
   function updateSortBtn() {
