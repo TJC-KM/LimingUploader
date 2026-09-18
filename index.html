@@ -1224,6 +1224,11 @@
     audio.ontimeupdate = () => {
       if (_trim?.stopAt != null && audio.currentTime >= _trim.stopAt) { audio.pause(); _trim.stopAt = null; }
     };
+    audio.onerror = () => {
+      if (!_trim || _trim.duration) return;
+      document.getElementById('trim-end-time').textContent = '無法載入';
+      document.getElementById('trim-error').textContent = '無法載入錄音，請稍後再試；如果一直這樣，可能是 Worker 還沒部署最新版';
+    };
     audio.src = `${WORKER_URL}/audio?fileId=${fileId}`;
     document.getElementById('trim-filename').textContent = fileName;
     document.getElementById('trim-progress').textContent = '';
