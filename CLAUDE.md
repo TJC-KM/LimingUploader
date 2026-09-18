@@ -52,7 +52,7 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
 | key | 說明 |
 |-----|------|
 | `convert_prompt` | 安排表轉檔改用 Gemini 解析時的提示詞（`{{year}}`、`{{month}}` 為佔位符） |
-| `convert_notify` | 每月自動轉檔失敗時要 LINE 通知的人：填 LINE 排程 Sheet `Users` 頁籤裡的名字，多人用逗號分隔 |
+| `convert_notify` | 每月自動轉檔完成或失敗時要用小幫手 LINE 通知的人：填小幫手 Sheet `Users` 頁籤裡的顯示名稱，多人用逗號分隔 |
 
 ### LINE 排程 Sheet（SCHEDULE_SHEET_ID）— Schedule 頁籤（含標題列）
 | 欄 | 說明 |
@@ -66,6 +66,11 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
 | G | 描述 + 按鈕 |
 | H | 建立時間 |
 | I | 狀態（待發送 / 已發送 / 失敗：...） |
+
+### LINE 小幫手 Sheet（SCHEDULE_HELPER_SHEET_ID，「Line發送功能(小幫手)」）
+由小幫手 LINE 帳號發送，每月自動轉檔的通知寫在這裡。
+- `Schedule` 頁籤（含標題列）：A 發送時間（`yyyy/MM/dd HH:mm`）｜B 對象 userId｜C 類型（text / image / flex）｜D 內容/檔名｜E 標題(flex)｜F 副標｜按鈕｜網址｜G 狀態（**留空 = 待發送**，發送後變 `sent` / `failed: ...`）｜H 發送時間（由發送程式填）｜I 對象名稱
+- `Users` 頁籤（含標題列）：A userId｜B 顯示名稱｜C 加入時間｜D isAdmin｜E 通知安排表
 
 ---
 
@@ -94,7 +99,7 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
 
 | Cron | 執行內容 |
 |------|----------|
-| `0 0 20,25 * *` | `runMonthlyConvert`：每月 20 號台灣 08:00 自動轉檔「下個月」安排表；25 號只補做還沒轉好的月份（不覆蓋已轉好的）；失敗時用 LINE 通知 Config 頁籤 `convert_notify` 指定的人 |
+| `0 0 20,25 * *` | `runMonthlyConvert`：每月 20 號台灣 08:00 自動轉檔「下個月」安排表；25 號只補做還沒轉好的月份（不覆蓋已轉好的）；完成或失敗都用小幫手 LINE 通知 Config 頁籤 `convert_notify` 指定的人 |
 | 其他任何 Cron | `runDailySummarize`：整理前一天的錄音重點 |
 
 - 每月轉檔的 Cron 字串必須和 `worker.js` 的 `MONTHLY_CONVERT_CRON` 一模一樣，否則會被當成每日錄音整理

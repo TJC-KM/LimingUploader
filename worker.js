@@ -899,12 +899,13 @@ async function runMonthlyConvert(env) {
     }
     const result = await runScheduleConvert(token, env, year, month);
     console.log(`[monthlyConvert] ${tabName} 完成：${result.rowCount} 筆（${result.parser}）`);
+    await notifyConvert(token, `✅ ${tabName} 安排表已自動轉檔，共 ${result.rowCount} 筆\n${result.sheetUrl}`);
   } catch (e) {
     console.error(`[monthlyConvert] ${tabName} 失敗：${e.message}`);
     const hint = isRetryDay
       ? '請把安排表 xlsx 放進來源資料夾後，到黎明寶庫按「轉檔」。'
       : '25 號會再自動試一次；也可以放好 xlsx 後到黎明寶庫按「轉檔」。';
-    await notifyConvertFailure(token, `⚠️ ${tabName} 安排表自動轉檔失敗\n${e.message}\n${hint}`);
+    await notifyConvert(token, `⚠️ ${tabName} 安排表自動轉檔失敗\n${e.message}\n${hint}`);
   }
 }
 
@@ -921,38 +922,48 @@ async function scheduleTabHasData(token, year, tabName) {
   return !!data.values?.length;
 }
 
-// 用 LINE 通知 Config 頁籤 convert_notify 指定的人
-// 值填 LINE 排程 Sheet 的 Users 頁籤裡的名字，多人用逗號分隔
-async function notifyConvertFailure(token, message) {
+// 把自動轉檔的結果（成功或失敗）交給小幫手 LINE 帳號，通知 Config 頁籤 convert_notify 指定的人
+// 值填「Line發送功能(小幫手)」Users 頁籤裡的顯示名稱，多人用逗號分隔
+async function notifyConvert(token, message) {
   const setting = await getConfigValue(token, 'convert_notify');
   if (!setting) {
     console.error('[monthlyConvert] Config 頁籤沒有設定 convert_notify，無法發 LINE 通知');
     return;
   }
-  const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_SHEET_ID}/values/Users!A:B`,
+  const usersRes = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_HELPER_SHEET_ID}/values/Users!A:B`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
-  const users = ((await res.json()).values || []).slice(1); // 跳過標題列
+  const users = ((await usersRes.json()).values || []).slice(1); // 跳過標題列
+  const time = nextHalfHourTaipei();
+  const rows = [];
   for (const name of setting.split(/[,，、]/).map(s => s.trim()).filter(Boolean)) {
     const user = users.find(([userId, userName]) => userId && (userName || '').trim() === name);
     if (!user) {
-      console.error(`[monthlyConvert] LINE 排程 Sheet 的 Users 頁籤找不到「${name}」`);
+      console.error(`[monthlyConvert] 小幫手 Users 頁籤找不到「${name}」`);
       continue;
     }
-    const added = await addScheduleRow(token, {
-      time: nextHalfHourTaipei(), targetId: user[0], targetName: user[1], type: 'text', content: message,
-    }, {});
-    if (!added.ok) console.error(`[monthlyConvert] 寫入 LINE 排程失敗：HTTP ${added.status}`);
+    // A 發送時間｜B 對象｜C 類型｜D 內容｜E、F 不用｜G 狀態留空＝待發送｜H 由發送程式填｜I 對象名稱
+    rows.push([time, user[0], 'text', message, '', '', '', '', user[1]]);
   }
+  if (!rows.length) return;
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_HELPER_SHEET_ID}/values/Schedule!A:I:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: rows }),
+    }
+  );
+  if (!res.ok) console.error(`[monthlyConvert] 寫入小幫手 LINE 排程失敗：HTTP ${res.status}`);
 }
 
-// 下一個半點的台灣時間（LINE 排程 30 分鐘一格），格式和網頁相同：yyyy-MM-dd HH:mm
+// 下一個半點的台灣時間，格式和小幫手 Schedule 頁籤相同：yyyy/MM/dd HH:mm
 function nextHalfHourTaipei() {
   const t = new Date(Date.now() + 8 * 60 * 60 * 1000);
   t.setUTCMinutes(t.getUTCMinutes() < 30 ? 30 : 60, 0, 0);
   const p = n => String(n).padStart(2, '0');
-  return `${t.getUTCFullYear()}-${p(t.getUTCMonth() + 1)}-${p(t.getUTCDate())} ${p(t.getUTCHours())}:${p(t.getUTCMinutes())}`;
+  return `${t.getUTCFullYear()}/${p(t.getUTCMonth() + 1)}/${p(t.getUTCDate())} ${p(t.getUTCHours())}:${p(t.getUTCMinutes())}`;
 }
 
 // 在來源資料夾搜尋民國年命名的 xlsx
