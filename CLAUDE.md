@@ -48,6 +48,12 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
 | A | userId（LINE userId） |
 | B | userName（LINE 顯示名稱） |
 
+### 類別設定 Sheet（SHEET_ID）— Config 頁籤（含標題列，A = key、B = value）
+| key | 說明 |
+|-----|------|
+| `convert_prompt` | 安排表轉檔改用 Gemini 解析時的提示詞（`{{year}}`、`{{month}}` 為佔位符） |
+| `convert_notify` | 每月自動轉檔失敗時要 LINE 通知的人：填 LINE 排程 Sheet `Users` 頁籤裡的名字，多人用逗號分隔 |
+
 ### LINE 排程 Sheet（SCHEDULE_SHEET_ID）— Schedule 頁籤（含標題列）
 | 欄 | 說明 |
 |----|------|
@@ -81,6 +87,17 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
 2. `git add` → `git commit`（worktree 自動 commit 到 `main-local`）
 3. `cd` 到主專案 → `git merge main-local` → `git push origin main`
 4. `worker.js` 異動時另外提醒使用者手動部署到 Cloudflare（從專案根目錄的 `worker.js` 複製到 Cloudflare Dashboard）
+
+---
+
+## 排程（Cloudflare Cron Triggers，在 Dashboard 設定）
+
+| Cron | 執行內容 |
+|------|----------|
+| `0 0 20,25 * *` | `runMonthlyConvert`：每月 20 號台灣 08:00 自動轉檔「下個月」安排表；25 號只補做還沒轉好的月份（不覆蓋已轉好的）；失敗時用 LINE 通知 Config 頁籤 `convert_notify` 指定的人 |
+| 其他任何 Cron | `runDailySummarize`：整理前一天的錄音重點 |
+
+- 每月轉檔的 Cron 字串必須和 `worker.js` 的 `MONTHLY_CONVERT_CRON` 一模一樣，否則會被當成每日錄音整理
 
 ---
 

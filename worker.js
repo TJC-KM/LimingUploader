@@ -23,6 +23,10 @@ const SCHEDULE_OUTPUT_FOLDER_ID = '1gCCmXEbRLQMgZsUvhk5y7K3rTtKSTCdM';
 // 安排表工作提醒 LINE 排程 Sheet（Helper 帳號發送，與主排程分開）
 const SCHEDULE_HELPER_SHEET_ID = '1F7fP03oexK4lrerV-hRHM1ooKirwZnuguCerGK6jogo';
 
+// 每月自動轉檔「下個月」安排表的排程；Cloudflare 的 Cron Trigger 必須設成一模一樣的字串
+// 每月 20、25 號 UTC 00:00 = 台灣 08:00；25 號只補做 20 號沒成功的
+const MONTHLY_CONVERT_CRON = '0 0 20,25 * *';
+
 // ========================================
 // CORS 設定：讓瀏覽器允許跨網域請求
 // 每次請求都會帶上這些 headers
@@ -42,7 +46,12 @@ function corsHeaders() {
 // ========================================
 export default {
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(runDailySummarize(env));
+    // 每月轉檔的排程只做轉檔；其他排程維持每日錄音重點整理
+    if (event.cron === MONTHLY_CONVERT_CRON) {
+      ctx.waitUntil(runMonthlyConvert(env));
+    } else {
+      ctx.waitUntil(runDailySummarize(env));
+    }
   },
 
   async fetch(request, env) {
@@ -766,7 +775,7 @@ async function runDailySummarize(env) {
 // 安排表轉檔功能
 // ========================================
 
-// 主流程：讀 xlsx → Gemini 解析 → 寫入 Google Sheet
+// 網頁「轉檔」按鈕：從檔名取年月後轉檔
 async function convertSchedule(token, env, fileName, headers) {
   // 1. 解析西元年月（支援 yyyy-MM、yyyyMM 開頭）
   const ym = parseScheduleYearMonth(fileName);
@@ -775,24 +784,32 @@ async function convertSchedule(token, env, fileName, headers) {
       status: 400, headers: { ...headers, 'Content-Type': 'application/json' }
     });
   }
-  const { year, month } = ym;
+  try {
+    const result = await runScheduleConvert(token, env, ym.year, ym.month);
+    return new Response(JSON.stringify({ success: true, ...result }), {
+      headers: { ...headers, 'Content-Type': 'application/json' },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message, ...(e.debug && { debug: e.debug }) }), {
+      status: e.status || 500, headers: { ...headers, 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+// 主流程：讀 xlsx → 解析 → 寫入 Google Sheet（網頁按鈕與每月排程共用）
+// 失敗時丟出錯誤，error.status 是對應的 HTTP 狀態碼
+async function runScheduleConvert(token, env, year, month) {
   const rocYear = year - 1911; // 民國年
   const tabName = `${rocYear}${month}`; // 例：11505
 
   // 2. 在來源資料夾找對應 xlsx（民國年命名）
   const xlsxFile = await findScheduleXlsx(token, rocYear, month);
-  if (!xlsxFile) {
-    return new Response(JSON.stringify({ error: `找不到來源檔案：${rocYear}${month}安排表.xlsx（資料夾 A）` }), {
-      status: 404, headers: { ...headers, 'Content-Type': 'application/json' }
-    });
-  }
+  if (!xlsxFile) throw convertError(404, `找不到來源檔案：${rocYear}${month}安排表.xlsx（資料夾 A）`);
 
   // 3. 將 xlsx 下載後重新上傳為 Google Sheet（比 copy 更可靠）
   const tempSheet = await importXlsxAsGoogleSheet(token, xlsxFile.id, `_temp_convert_${tabName}`);
   if (!tempSheet?.id) {
-    return new Response(JSON.stringify({ error: `轉換 xlsx 失敗：${tempSheet?.error?.message || JSON.stringify(tempSheet)}` }), {
-      status: 500, headers: { ...headers, 'Content-Type': 'application/json' }
-    });
+    throw convertError(500, `轉換 xlsx 失敗：${tempSheet?.error?.message || JSON.stringify(tempSheet)}`);
   }
 
   let scheduleRows = [];
@@ -814,16 +831,13 @@ async function convertSchedule(token, env, fileName, headers) {
       const geminiResult = await parseScheduleWithGemini(token, env, rawData, year, month);
       scheduleRows = geminiResult.rows;
       if (scheduleRows.length === 0) {
-        return new Response(JSON.stringify({
-          error: 'Gemini 解析結果為空',
-          debug: {
-            rawDataRows: rawData.length,
-            geminiRaw: geminiResult.raw,
-            finishReason: geminiResult.finishReason,
-            apiError: geminiResult.apiError,
-            progLog: progResult.log,
-          },
-        }), { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } });
+        throw convertError(500, 'Gemini 解析結果為空', {
+          rawDataRows: rawData.length,
+          geminiRaw: geminiResult.raw,
+          finishReason: geminiResult.finishReason,
+          apiError: geminiResult.apiError,
+          progLog: progResult.log,
+        });
       }
     }
   } finally {
@@ -839,15 +853,20 @@ async function convertSchedule(token, env, fileName, headers) {
   await writeScheduleTab(token, yearSheetId, tabName, scheduleRows);
 
   // 9. 回傳結果
-  const sheetUrl = `https://docs.google.com/spreadsheets/d/${yearSheetId}/edit#gid=0`;
-  return new Response(JSON.stringify({
-    success: true,
+  return {
     sheetId: yearSheetId,
-    sheetUrl,
+    sheetUrl: `https://docs.google.com/spreadsheets/d/${yearSheetId}/edit#gid=0`,
     tabName,
     rowCount: scheduleRows.length,
     parser: usedGemini ? 'gemini' : 'programmatic',
-  }), { headers: { ...headers, 'Content-Type': 'application/json' } });
+  };
+}
+
+function convertError(status, message, debug) {
+  const err = new Error(message);
+  err.status = status;
+  if (debug) err.debug = debug;
+  return err;
 }
 
 // 從檔名解析西元年月
@@ -857,6 +876,83 @@ function parseScheduleYearMonth(fileName) {
   m = fileName.match(/^(\d{4})(\d{2})/);
   if (m) return { year: parseInt(m[1]), month: m[2] };
   return null;
+}
+
+// ========================================
+// 每月自動轉檔（由 MONTHLY_CONVERT_CRON 觸發）
+// ========================================
+
+// 轉檔「下個月」的安排表；25 號只補做 20 號沒成功的，已經轉好的不覆蓋
+async function runMonthlyConvert(env) {
+  const token = await getAccessToken(env);
+  const taipei = new Date(Date.now() + 8 * 60 * 60 * 1000); // 用 UTC 欄位讀台灣時間
+  const next = new Date(Date.UTC(taipei.getUTCFullYear(), taipei.getUTCMonth() + 1, 1));
+  const year = next.getUTCFullYear();
+  const month = String(next.getUTCMonth() + 1).padStart(2, '0');
+  const tabName = `${year - 1911}${month}`;
+  const isRetryDay = taipei.getUTCDate() >= 25;
+
+  try {
+    if (isRetryDay && await scheduleTabHasData(token, year, tabName)) {
+      console.log(`[monthlyConvert] ${tabName} 已經轉好，略過`);
+      return;
+    }
+    const result = await runScheduleConvert(token, env, year, month);
+    console.log(`[monthlyConvert] ${tabName} 完成：${result.rowCount} 筆（${result.parser}）`);
+  } catch (e) {
+    console.error(`[monthlyConvert] ${tabName} 失敗：${e.message}`);
+    const hint = isRetryDay
+      ? '請把安排表 xlsx 放進來源資料夾後，到黎明寶庫按「轉檔」。'
+      : '25 號會再自動試一次；也可以放好 xlsx 後到黎明寶庫按「轉檔」。';
+    await notifyConvertFailure(token, `⚠️ ${tabName} 安排表自動轉檔失敗\n${e.message}\n${hint}`);
+  }
+}
+
+// 年度安排表裡該月頁籤是否已經有資料（標題列下面有第一筆就算）
+async function scheduleTabHasData(token, year, tabName) {
+  const sheetId = await findYearSheet(token, `${year}年安排表`);
+  if (!sheetId) return false;
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(tabName)}!A2:A2`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) return false; // 頁籤還不存在
+  const data = await res.json();
+  return !!data.values?.length;
+}
+
+// 用 LINE 通知 Config 頁籤 convert_notify 指定的人
+// 值填 LINE 排程 Sheet 的 Users 頁籤裡的名字，多人用逗號分隔
+async function notifyConvertFailure(token, message) {
+  const setting = await getConfigValue(token, 'convert_notify');
+  if (!setting) {
+    console.error('[monthlyConvert] Config 頁籤沒有設定 convert_notify，無法發 LINE 通知');
+    return;
+  }
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_SHEET_ID}/values/Users!A:B`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const users = ((await res.json()).values || []).slice(1); // 跳過標題列
+  for (const name of setting.split(/[,，、]/).map(s => s.trim()).filter(Boolean)) {
+    const user = users.find(([userId, userName]) => userId && (userName || '').trim() === name);
+    if (!user) {
+      console.error(`[monthlyConvert] LINE 排程 Sheet 的 Users 頁籤找不到「${name}」`);
+      continue;
+    }
+    const added = await addScheduleRow(token, {
+      time: nextHalfHourTaipei(), targetId: user[0], targetName: user[1], type: 'text', content: message,
+    }, {});
+    if (!added.ok) console.error(`[monthlyConvert] 寫入 LINE 排程失敗：HTTP ${added.status}`);
+  }
+}
+
+// 下一個半點的台灣時間（LINE 排程 30 分鐘一格），格式和網頁相同：yyyy-MM-dd HH:mm
+function nextHalfHourTaipei() {
+  const t = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  t.setUTCMinutes(t.getUTCMinutes() < 30 ? 30 : 60, 0, 0);
+  const p = n => String(n).padStart(2, '0');
+  return `${t.getUTCFullYear()}-${p(t.getUTCMonth() + 1)}-${p(t.getUTCDate())} ${p(t.getUTCHours())}:${p(t.getUTCMinutes())}`;
 }
 
 // 在來源資料夾搜尋民國年命名的 xlsx
@@ -1158,16 +1254,21 @@ function splitNames(val) {
     .filter(p => p && p !== '-' && p.length >= 2);
 }
 
-// 在輸出資料夾找或建立年度 Google Sheet
-async function findOrCreateYearSheet(token, title) {
-  // 先搜尋是否已存在
+// 在輸出資料夾找年度 Google Sheet，找不到回傳 null
+async function findYearSheet(token, title) {
   const q = `'${SCHEDULE_OUTPUT_FOLDER_ID}' in parents and name='${title}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`;
   const searchRes = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&supportsAllDrives=true&includeItemsFromAllDrives=true&fields=files(id)`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
   const searchData = await searchRes.json();
-  if (searchData.files?.length > 0) return searchData.files[0].id;
+  return searchData.files?.[0]?.id || null;
+}
+
+// 在輸出資料夾找或建立年度 Google Sheet
+async function findOrCreateYearSheet(token, title) {
+  const existingId = await findYearSheet(token, title);
+  if (existingId) return existingId;
 
   // 直接用 Drive API 在 Shared Drive 建立，不經過個人空間（避免個人配額問題）
   const createRes = await fetch(
