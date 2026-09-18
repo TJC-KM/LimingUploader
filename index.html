@@ -112,6 +112,20 @@
   .upload-item-status.skipped { color: #aaa; }
   .upload-item-status.waiting { color: #b7791f; }
   #resume-notice { margin: 0 0 16px; }
+
+  /* 剪輯錄音彈窗 */
+  .trim-modal { max-width: 400px; }
+  .trim-modal audio { width: 100%; margin: 4px 0 10px; }
+  .trim-hint { font-size: 12px !important; color: #888; margin-bottom: 10px !important; line-height: 1.5; }
+  .trim-point { background: #f9f9f9; border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+  .trim-point-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 13px; color: #555; }
+  .trim-point-head b { font-size: 16px; color: #333; font-variant-numeric: tabular-nums; }
+  .trim-point-head button { margin-left: auto; padding: 4px 10px; font-size: 12px; border: 1px solid #ddd; border-radius: 8px; background: #fff; cursor: pointer; }
+  .trim-nudges { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .trim-nudges button { padding: 6px 0; font-size: 12px; border: 1px solid #ddd; border-radius: 8px; background: #fff; cursor: pointer; }
+  .trim-modal button:disabled { opacity: 0.5; cursor: default; }
+  .trim-summary { font-size: 13px; color: #555; margin: 4px 0 8px; }
+  .trim-progress { font-size: 13px; color: #185FA5; min-height: 18px; margin-bottom: 6px; }
   .upload-line-tip { font-size: 12px; color: #876800; margin-top: 10px; text-align: center; }
   .upload-line-tip a { color: #378ADD; cursor: pointer; text-decoration: underline; }
 
@@ -332,6 +346,43 @@
   </div>
 </div>
 
+<!-- 剪輯錄音彈窗（去頭去尾，取代原檔） -->
+<div class="modal-overlay" id="trim-modal">
+  <div class="modal trim-modal">
+    <h3>✂️ 剪輯錄音</h3>
+    <p id="trim-filename" style="font-size:12px;color:#555;margin-bottom:6px;word-break:break-all;"></p>
+    <p class="trim-hint">播放到要保留的開頭，按「目前位置」設為開始；結尾也一樣。剪完會取代原檔，原本的錄音保留在 Google 雲端硬碟的「管理版本」。</p>
+    <audio id="trim-audio" controls preload="metadata"></audio>
+    <div class="trim-point">
+      <div class="trim-point-head">開始 <b id="trim-start-time">0:00</b><button onclick="previewTrim('start')">▶ 試聽開頭</button></div>
+      <div class="trim-nudges">
+        <button onclick="nudgeTrim('start', -5)">−5秒</button>
+        <button onclick="nudgeTrim('start', -1)">−1秒</button>
+        <button onclick="setTrimToPlayer('start')">目前位置</button>
+        <button onclick="nudgeTrim('start', 1)">+1秒</button>
+        <button onclick="nudgeTrim('start', 5)">+5秒</button>
+      </div>
+    </div>
+    <div class="trim-point">
+      <div class="trim-point-head">結束 <b id="trim-end-time">讀取中…</b><button onclick="previewTrim('end')">▶ 試聽結尾</button></div>
+      <div class="trim-nudges">
+        <button onclick="nudgeTrim('end', -5)">−5秒</button>
+        <button onclick="nudgeTrim('end', -1)">−1秒</button>
+        <button onclick="setTrimToPlayer('end')">目前位置</button>
+        <button onclick="nudgeTrim('end', 1)">+1秒</button>
+        <button onclick="nudgeTrim('end', 5)">+5秒</button>
+      </div>
+    </div>
+    <div class="trim-summary" id="trim-summary"></div>
+    <div class="trim-progress" id="trim-progress"></div>
+    <div class="error-msg" id="trim-error"></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" id="trim-cancel-btn" onclick="closeTrimModal()">取消</button>
+      <button class="btn-primary" id="trim-confirm-btn" onclick="confirmTrim()">剪輯並取代</button>
+    </div>
+  </div>
+</div>
+
 <!-- 上傳前確認檔名彈窗 -->
 <div class="modal-overlay" id="upload-rename-modal">
   <div class="modal">
@@ -431,11 +482,12 @@
   <div class="version-footer" id="version-footer"></div>
 </div>
 
-<script src="upload.js?v=20260915"></script>
+<script src="upload.js?v=20260918"></script>
+<script src="mp3-trim.js?v=20260918"></script>
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
-  document.getElementById('version-footer').textContent = '最後發布時間：2026-09-17 00:00';
+  document.getElementById('version-footer').textContent = '最後發布時間：2026-09-18 00:00';
 
   let CATEGORIES = [];
 
@@ -722,8 +774,9 @@
         const deleteBtn = `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file','${f.id}','${safeName}')">刪除</button>`;
         const lineBtn = showLine ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>` : '';
         const summarizeBtn = f.mimeType && f.mimeType.startsWith('audio/') ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>` : '';
+        const trimBtn = isMp3(f) ? `<button class="btn-action" onclick="openTrimModal('${f.id}','${safeName}')">剪輯</button>` : '';
         const convertBtn = showLine && /^(\d{4}-\d{2}|\d{6})/.test(f.name) && f.name.includes('安排表') ? `<button class="btn-action btn-action-convert" onclick="convertSchedule('${f.id}','${safeName}')">轉檔</button>` : '';
-        return `<div class="file-row"><div class="file-type-icon">${getFileIcon(f.mimeType)}</div><div class="file-info"><div class="file-name">${f.name}</div><div class="file-meta">${formatSize(f.size)}</div></div><div class="file-date">${formatDate(f.createdTime)}</div><div class="file-actions"><a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a><a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}${convertBtn}</div></div>`;
+        return `<div class="file-row"><div class="file-type-icon">${getFileIcon(f.mimeType)}</div><div class="file-info"><div class="file-name">${f.name}</div><div class="file-meta">${formatSize(f.size)}</div></div><div class="file-date">${formatDate(f.createdTime)}</div><div class="file-actions"><a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a><a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}${trimBtn}${convertBtn}</div></div>`;
       }).join('');
     } else {
       function renderMediaGrid(items, label, isVideo) {
@@ -747,8 +800,9 @@
         const deleteBtn = `<button class="btn-action btn-action-delete" onclick="openDeleteModal('file', '${f.id}')">刪除</button>`;
         const lineBtn = showLine ? `<button class="btn-action btn-action-line" onclick="openLineModal('${f.id}','${safeName}','${f.mimeType || ''}')">Line發布</button>` : '';
         const summarizeBtn = f.mimeType && f.mimeType.startsWith('audio/') ? `<button class="btn-action" onclick="openSummarizeModal('${f.id}','${safeName}')">重點整理</button>` : '';
+        const trimBtn = isMp3(f) ? `<button class="btn-action" onclick="openTrimModal('${f.id}','${safeName}')">剪輯</button>` : '';
         const convertBtn = showLine && /^(\d{4}-\d{2}|\d{6})/.test(f.name) && f.name.includes('安排表') ? `<button class="btn-action btn-action-convert" onclick="convertSchedule('${f.id}','${safeName}')">轉檔</button>` : '';
-        return `<div class="file-row"><div class="file-type-icon">${getFileIcon(f.mimeType)}</div><div class="file-info"><div class="file-name">${f.name}</div><div class="file-meta">${formatSize(f.size)}</div></div><div class="file-date">${formatDate(f.createdTime)}</div><div class="file-actions"><a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a><a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}${convertBtn}</div></div>`;
+        return `<div class="file-row"><div class="file-type-icon">${getFileIcon(f.mimeType)}</div><div class="file-info"><div class="file-name">${f.name}</div><div class="file-meta">${formatSize(f.size)}</div></div><div class="file-date">${formatDate(f.createdTime)}</div><div class="file-actions"><a href="https://drive.google.com/file/d/${f.id}/view" onclick="openExternal(this.href);return false;" class="btn-action">預覽</a><a href="https://drive.google.com/uc?export=download&id=${f.id}" onclick="openExternal(this.href);return false;" class="btn-action">下載</a>${renameBtn}${deleteBtn}${lineBtn}${summarizeBtn}${trimBtn}${convertBtn}</div></div>`;
       }).join('');
     }
     list.innerHTML = html || '<div class="empty-files">這個資料夾還沒有檔案</div>';
@@ -1147,6 +1201,165 @@
 
   function closeSummarizeModal() { document.getElementById('summarize-modal').classList.remove('show'); }
 
+  // ── 剪輯錄音（去頭去尾，取代原檔） ─────────────
+  // 在瀏覽器裡把 MP3 原封不動切出要保留的段落（mp3-trim.js），再取代雲端上的原檔
+  // 檔案 ID 不變，原本的內容由 Worker 設成永久保留，可從雲端硬碟的「管理版本」找回
+
+  let _trim = null;
+
+  function openTrimModal(fileId, fileName) {
+    _trim = { fileId, fileName, start: 0, end: 0, duration: 0, stopAt: null, busy: false };
+    const audio = document.getElementById('trim-audio');
+    audio.onloadedmetadata = () => {
+      if (!_trim) return;
+      if (!isFinite(audio.duration)) {
+        document.getElementById('trim-error').textContent = '無法讀取錄音長度';
+        return;
+      }
+      _trim.duration = audio.duration;
+      _trim.start = 0;
+      _trim.end = audio.duration;
+      renderTrim();
+    };
+    audio.ontimeupdate = () => {
+      if (_trim?.stopAt != null && audio.currentTime >= _trim.stopAt) { audio.pause(); _trim.stopAt = null; }
+    };
+    audio.src = `${WORKER_URL}/audio?fileId=${fileId}`;
+    document.getElementById('trim-filename').textContent = fileName;
+    document.getElementById('trim-progress').textContent = '';
+    document.getElementById('trim-error').textContent = '';
+    document.getElementById('trim-confirm-btn').style.display = '';
+    document.getElementById('trim-cancel-btn').textContent = '取消';
+    setTrimBusy(false);
+    renderTrim();
+    document.getElementById('trim-modal').classList.add('show');
+  }
+
+  function closeTrimModal() {
+    if (_trim?.busy) return;
+    const audio = document.getElementById('trim-audio');
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    document.getElementById('trim-modal').classList.remove('show');
+    _trim = null;
+  }
+
+  function formatTrimTime(sec) {
+    const s = Math.max(0, Math.round(sec));
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+    const pad = n => String(n).padStart(2, '0');
+    return h ? `${h}:${pad(m)}:${pad(r)}` : `${m}:${pad(r)}`;
+  }
+
+  function renderTrim() {
+    if (!_trim) return;
+    const ready = _trim.duration > 0;
+    document.getElementById('trim-start-time').textContent = formatTrimTime(_trim.start);
+    document.getElementById('trim-end-time').textContent = ready ? formatTrimTime(_trim.end) : '讀取中…';
+    document.getElementById('trim-summary').textContent = ready
+      ? `剪完長度 ${formatTrimTime(_trim.end - _trim.start)}（原本 ${formatTrimTime(_trim.duration)}）`
+      : '';
+  }
+
+  // 開始點至少比結束點早 1 秒
+  function setTrimPoint(which, value) {
+    if (!_trim?.duration || _trim.busy) return;
+    const v = Math.min(Math.max(value, 0), _trim.duration);
+    if (which === 'start') _trim.start = Math.min(v, _trim.end - 1);
+    else _trim.end = Math.max(v, _trim.start + 1);
+    renderTrim();
+  }
+
+  function nudgeTrim(which, delta) {
+    if (_trim) setTrimPoint(which, _trim[which] + delta);
+  }
+
+  function setTrimToPlayer(which) {
+    setTrimPoint(which, document.getElementById('trim-audio').currentTime);
+  }
+
+  // 試聽開頭：從開始點播 5 秒；試聽結尾：播到結束點前的最後 5 秒
+  function previewTrim(which) {
+    if (!_trim?.duration) return;
+    const audio = document.getElementById('trim-audio');
+    const from = which === 'start' ? _trim.start : Math.max(_trim.start, _trim.end - 5);
+    _trim.stopAt = which === 'start' ? Math.min(_trim.end, from + 5) : _trim.end;
+    audio.currentTime = from;
+    audio.play();
+  }
+
+  function setTrimBusy(busy) {
+    if (_trim) _trim.busy = busy;
+    document.querySelectorAll('#trim-modal button').forEach(b => { b.disabled = busy; });
+  }
+
+  async function confirmTrim() {
+    if (!_trim?.duration || _trim.busy) return;
+    const { fileId, fileName, start, end, duration } = _trim;
+    const errEl = document.getElementById('trim-error');
+    const progress = document.getElementById('trim-progress');
+    if (start < 0.5 && end > duration - 0.5) { errEl.textContent = '還沒有設定要剪掉的開頭或結尾'; return; }
+    if (!confirm(`確定要剪輯並取代「${fileName}」？\n\n保留 ${formatTrimTime(start)} ～ ${formatTrimTime(end)}（共 ${formatTrimTime(end - start)}）\n原本的錄音會保留在 Google 雲端硬碟的「管理版本」。`)) return;
+
+    errEl.textContent = '';
+    document.getElementById('trim-audio').pause();
+    setTrimBusy(true);
+    const release = LimingUploader.hold(); // 處理期間保持螢幕開啟、離開頁面前提醒
+    try {
+      progress.textContent = '下載原始錄音…';
+      const blob = await downloadTrimSource(fileId, (received, total) => {
+        progress.textContent = total
+          ? `下載原始錄音… ${Math.floor((received / total) * 100)}%`
+          : `下載原始錄音… ${(received / 1048576).toFixed(1)} MB`;
+      });
+      progress.textContent = '剪輯中…';
+      const info = await Mp3Trim.analyze(blob);
+      const result = Mp3Trim.cut(blob, info, start, end);
+      const file = new File([result.blob], fileName, { type: 'audio/mpeg' });
+      progress.textContent = '上傳中… 0%';
+      await LimingUploader.replaceFile(file, fileId, p => { progress.textContent = `上傳中… ${Math.floor(p * 100)}%`; });
+
+      progress.textContent = `✓ 完成！新的長度 ${formatTrimTime(result.end - result.start)}，可以直接播放確認`;
+      setTrimBusy(false);
+      document.getElementById('trim-confirm-btn').style.display = 'none';
+      document.getElementById('trim-cancel-btn').textContent = '關閉';
+      // 重新載入播放器，播放的就是剪好的版本
+      _trim.duration = 0;
+      renderTrim();
+      document.getElementById('trim-audio').src = `${WORKER_URL}/audio?fileId=${fileId}&t=${Date.now()}`;
+      if ((currentFolderId || currentCategoryId)) loadFiles(currentFolderId || currentCategoryId);
+    } catch (e) {
+      progress.textContent = '';
+      errEl.textContent = `剪輯失敗：${e.message || e}`;
+      setTrimBusy(false);
+    } finally {
+      release();
+    }
+  }
+
+  // 透過 Worker 下載整個 MP3，回報進度
+  async function downloadTrimSource(fileId, onProgress) {
+    const res = await fetch(`${WORKER_URL}/audio?fileId=${fileId}`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `下載失敗（${res.status}）`);
+    }
+    const total = Number(res.headers.get('Content-Length')) || 0;
+    const reader = res.body.getReader();
+    const chunks = [];
+    let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      onProgress(received, total);
+    }
+    if (total && received !== total) throw new Error('下載不完整，請再試一次');
+    return new Blob(chunks, { type: 'audio/mpeg' });
+  }
+
   async function convertSchedule(fileId, fileName) {
     const modal = document.getElementById('convert-modal');
     document.getElementById('convert-filename').textContent = fileName;
@@ -1194,6 +1407,10 @@
   function updateViewToggleBtn() {
     const btn = document.getElementById('view-toggle-btn');
     if (btn) btn.textContent = viewMode === 'grid' ? '≡ 清單' : '⊞ 格狀';
+  }
+
+  function isMp3(f) {
+    return f.mimeType === 'audio/mpeg' || /\.mp3$/i.test(f.name || '');
   }
 
   function getFileIcon(mime) {

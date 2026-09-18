@@ -28,6 +28,7 @@ const LimingUploader = (() => {
   let tasks = [];             // 本輪上傳的檔案
   let active = 0;             // 正在上傳的檔案數
   let runFinished = true;
+  let holds = 0;              // 其他長時間作業（例如剪輯錄音）進行中的數量
   let wakeLock = null, wakeLockPending = false;
   const wakeups = new Set();  // 等待重試中的計時器，網路恢復或回到頁面時提早叫醒
 
@@ -42,8 +43,26 @@ const LimingUploader = (() => {
     renderNotice();
   }
 
+  // 有檔案在上傳，或有其他長時間作業進行中（這段期間保持螢幕開啟、離開頁面前提醒）
   function isBusy() {
+    return holds > 0 || tasksBusy();
+  }
+
+  function tasksBusy() {
     return tasks.some(t => BUSY_STATES.includes(t.state));
+  }
+
+  // 其他長時間作業開始時呼叫，回傳結束時要呼叫的函式
+  function hold() {
+    holds++;
+    updateWakeLock();
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      holds--;
+      updateWakeLock();
+    };
   }
 
   function isLineBrowser() {
@@ -56,7 +75,7 @@ const LimingUploader = (() => {
   async function add(items, { folderId, folderName }) {
     if (noticeEl) noticeEl.style.display = 'none';
     // 上一輪已經結束：清掉成功與略過的，保留失敗的讓使用者還能重試
-    if (!isBusy()) tasks = tasks.filter(t => t.state === 'failed');
+    if (!tasksBusy()) tasks = tasks.filter(t => t.state === 'failed');
     runFinished = false;
 
     const checking = [];
@@ -130,7 +149,7 @@ const LimingUploader = (() => {
     }
     renderStatus();
     updateWakeLock();
-    if (!isBusy() && !runFinished) {
+    if (!tasksBusy() && !runFinished) {
       runFinished = true;
       if (onDone) onDone([...new Set(tasks.map(t => t.folderId))]);
     }
@@ -244,7 +263,11 @@ const LimingUploader = (() => {
       if (body) xhr.setRequestHeader('Content-Type', t.mimeType);
       xhr.upload.onprogress = e => {
         t.lastProgressAt = Date.now();
-        if (body) { t.loaded = base + e.loaded; renderRow(t); }
+        if (body) {
+          t.loaded = base + e.loaded;
+          if (t.row) renderRow(t);
+          else if (t.onProgress) t.onProgress(t.loaded / t.file.size);
+        }
       };
       xhr.onload = () => {
         cleanup();
@@ -270,6 +293,42 @@ const LimingUploader = (() => {
       xhr.onabort = () => { cleanup(); reject(uploadError('retry', '連線中斷')); };
       xhr.send(body);
     });
+  }
+
+  // ── 取代雲端上的既有檔案 ──────────────────
+
+  // 用新內容取代雲端上的 MP3（檔案 ID 不變），一樣分段續傳、斷線自動重試
+  // onProgress(0～1)；完成時 resolve，失敗時 reject（上傳沒完成前，原檔不會被更動）
+  async function replaceFile(file, fileId, onProgress) {
+    const res = await fetch(`${workerUrl}/replace-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.uploadUrl) throw new Error(data.error || `取得上傳網址失敗（${res.status}）`);
+
+    const t = {
+      file, mimeType: file.type || 'audio/mpeg', uploadUrl: data.uploadUrl,
+      offset: 0, loaded: 0, needsOffsetCheck: false, xhr: null, lastProgressAt: 0, onProgress,
+    };
+    let attempt = 0, stalled = 0;
+    while (true) {
+      while (!navigator.onLine) await sleep(30 * 1000);
+      const offsetBefore = t.offset;
+      try {
+        let complete = t.needsOffsetCheck ? await putToGoogle(t, null, `bytes */${file.size}`) : false;
+        t.needsOffsetCheck = false;
+        while (!complete) complete = await sendChunk(t);
+        return;
+      } catch (err) {
+        if (err.kind !== 'retry') throw err; // 續傳網址失效或 Google 拒絕，就不再重試
+        t.needsOffsetCheck = true;
+        if (t.offset > offsetBefore) { attempt = 0; stalled = 0; }
+        else if (navigator.onLine && !document.hidden && ++stalled >= MAX_STALLED) throw err;
+        await sleep(RETRY_DELAYS[Math.min(attempt++, RETRY_DELAYS.length - 1)] * 1000);
+      }
+    }
   }
 
   function uploadError(kind, message) {
@@ -436,7 +495,7 @@ const LimingUploader = (() => {
     const skipped = tasks.filter(t => t.state === 'skipped').length;
     const failed = tasks.filter(t => t.state === 'failed');
 
-    if (isBusy()) {
+    if (tasksBusy()) {
       const progress = `已完成 ${done + skipped + failed.length} / ${tasks.length}`;
       statusEl.className = 'upload-summary info';
       appendLine(statusEl, navigator.onLine
@@ -482,5 +541,5 @@ const LimingUploader = (() => {
     noticeEl.style.display = '';
   }
 
-  return { init, add, retryFailed, isBusy, isLineBrowser };
+  return { init, add, retryFailed, isBusy, isLineBrowser, hold, replaceFile };
 })();

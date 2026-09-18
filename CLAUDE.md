@@ -7,6 +7,7 @@
 | `index.html` | 主要前端頁面，部署於 GitHub Pages |
 | `gallery.html` | 分享用圖庫頁（也可上傳），部署於 GitHub Pages |
 | `upload.js` | 上傳引擎（分段續傳、斷線自動繼續、略過已存在檔案），index.html 與 gallery.html 共用；修改後要更新兩個頁面引用處的 `?v=` 版本號 |
+| `mp3-trim.js` | MP3 去頭去尾（直接切 frame、不重新壓縮），index.html 檔案列表的「剪輯」使用；修改後要更新 index.html 引用處的 `?v=` 版本號 |
 | `print.html` | A4 圖片列印工具（手機選圖、旋轉、縮放、上中下位置，直接列印或存成 PDF），純前端不上傳也不呼叫 Worker；首頁入口是類別設定 Sheet 裡一列 `type = link` 的類別 |
 | `worker.js` | Cloudflare Worker 後端，需手動部署（已納入 git 版控） |
 
@@ -112,3 +113,4 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
   **https://dash.cloudflare.com/8e2eb47cb86e3cfb953c89dd148b6137/workers/services/view/liminguploader/production**
 - `Users` 頁籤**有標題列**，程式讀取時會跳過第一列
 - `Schedule` 頁籤**有標題列**，程式讀取時會跳過第一列
+- 錄音「剪輯」用到 Worker 的 `/audio`（串流雲端上的 MP3，支援 Range）與 `/replace-url`（建立取代 MP3 內容的續傳網址），兩者都只接受 MP3；取代前會把原本的版本設成永久保留，剪錯可從 Google 雲端硬碟的「管理版本」還原，檔案 ID 與連結不變

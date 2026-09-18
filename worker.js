@@ -233,6 +233,17 @@ export default {
         return await convertSchedule(token, env, fileName, headers);
       }
 
+      // 讀取雲端上的 MP3（剪輯用，支援 Range 讓播放器可以拖曳）
+      if (path === '/audio' && method === 'GET') {
+        return await streamAudio(token, url.searchParams.get('fileId'), request.headers.get('Range'), headers);
+      }
+
+      // 取得「取代 MP3 內容」的續傳網址：檔案 ID 不變，原本的內容永久保留在雲端硬碟的版本記錄
+      if (path === '/replace-url' && method === 'POST') {
+        const { fileId } = await request.json();
+        return await getReplaceUploadUrl(token, fileId, headers);
+      }
+
       // 找不到對應路由
       return new Response('Not found', { status: 404, headers });
 
@@ -564,6 +575,93 @@ async function getUploadUrl(token, fileName, mimeType, folderId, headers) {
   return new Response(JSON.stringify({ uploadUrl }), {
     headers: { ...headers, 'Content-Type': 'application/json' },
   });
+}
+
+// ========================================
+// 錄音剪輯：讀取原始 MP3、把原檔內容換成剪好的版本
+// ========================================
+
+// 取得 MP3 的資訊；不是 MP3 就回傳 null（避免這兩個路由被拿來讀取或覆蓋其他檔案）
+async function getMp3Meta(token, fileId, fields) {
+  if (!/^[\w-]+$/.test(fileId || '')) return null;
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?fields=mimeType,name,${fields}&supportsAllDrives=true`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!res.ok) return null;
+  const meta = await res.json();
+  return meta.mimeType === 'audio/mpeg' || /\.mp3$/i.test(meta.name || '') ? meta : null;
+}
+
+// 把雲端上的 MP3 串流給瀏覽器；播放器拖曳時會帶 Range，只回傳需要的片段
+async function streamAudio(token, fileId, range, headers) {
+  const meta = await getMp3Meta(token, fileId, 'size');
+  if (!meta) {
+    return new Response(JSON.stringify({ error: '只支援雲端上的 MP3 檔案' }), {
+      status: 400, headers: { ...headers, 'Content-Type': 'application/json' },
+    });
+  }
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
+    { headers: { Authorization: `Bearer ${token}`, ...(range && { Range: range }) } }
+  );
+  if (!res.ok) {
+    return new Response(JSON.stringify({ error: `讀取檔案失敗（${res.status}）` }), {
+      status: res.status, headers: { ...headers, 'Content-Type': 'application/json' },
+    });
+  }
+  const out = new Headers({
+    ...headers,
+    'Content-Type': 'audio/mpeg',
+    'Accept-Ranges': 'bytes',
+    'Cache-Control': 'no-store', // 剪輯後內容會變，不要用到舊的快取
+    'Access-Control-Expose-Headers': 'Content-Length, Content-Range',
+  });
+  for (const name of ['Content-Length', 'Content-Range']) {
+    const value = res.headers.get(name);
+    if (value) out.set(name, value);
+  }
+  return new Response(res.body, { status: res.status, headers: out });
+}
+
+// 建立「取代 MP3 內容」的續傳網址
+// 取代前先把目前的內容設成永久保留，剪錯了還能從雲端硬碟的「管理版本」找回來
+async function getReplaceUploadUrl(token, fileId, headers) {
+  const reply = (body, status = 200) => new Response(JSON.stringify(body), {
+    status, headers: { ...headers, 'Content-Type': 'application/json' },
+  });
+  const meta = await getMp3Meta(token, fileId, 'headRevisionId');
+  if (!meta?.headRevisionId) return reply({ error: '只支援取代雲端上的 MP3 檔案' }, 400);
+
+  const keep = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}/revisions/${meta.headRevisionId}`,
+    {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keepForever: true }),
+    }
+  );
+  if (!keep.ok) {
+    const err = await keep.json().catch(() => ({}));
+    return reply({ error: `無法保留原始版本，已取消：${err.error?.message || keep.status}` }, 500);
+  }
+
+  const res = await fetch(
+    `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=resumable&supportsAllDrives=true`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-Upload-Content-Type': 'audio/mpeg',
+        Origin: ALLOWED_ORIGIN, // 讓簽出的網址接受該 origin 跨域 PUT
+      },
+      body: '{}', // 只換內容，檔名等資訊不變
+    }
+  );
+  const uploadUrl = res.headers.get('Location');
+  if (!uploadUrl) return reply({ error: `建立上傳失敗（${res.status}）` }, 500);
+  return reply({ uploadUrl });
 }
 
 // ========================================
