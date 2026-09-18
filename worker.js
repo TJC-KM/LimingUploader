@@ -338,17 +338,33 @@ async function signJWT(input, key) {
 // Google Drive API 操作函式
 // ========================================
 
+// 查詢 Drive 檔案並拿完所有分頁（Drive 預設一次只回 100 筆，最多 1000 筆）
+async function listAllDriveFiles(token, query, fields, orderBy) {
+  const files = [];
+  let pageToken = '';
+  do {
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=nextPageToken,files(${fields})&orderBy=${encodeURIComponent(orderBy)}&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true` +
+        (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''),
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await res.json();
+    if (data.error) return data;
+    files.push(...(data.files || []));
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+  return { files };
+}
+
 // 列出根資料夾下的所有子資料夾
 async function listFolders(token, rootFolderId, headers) {
   // 查詢條件：在根資料夾內、是資料夾類型、沒有被刪除
-  const query = encodeURIComponent(
-    `'${rootFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`
+  const data = await listAllDriveFiles(
+    token,
+    `'${rootFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    'id,name,createdTime',
+    'name'
   );
-  const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,createdTime)&orderBy=name&supportsAllDrives=true&includeItemsFromAllDrives=true`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  const data = await res.json();
   return new Response(JSON.stringify(data), {
     headers: { ...headers, 'Content-Type': 'application/json' },
   });
@@ -377,14 +393,12 @@ async function createFolder(token, name, parentId, headers) {
 // 列出指定資料夾內的所有檔案（不含子資料夾）
 async function listFiles(token, folderId, headers) {
   // 查詢條件：在指定資料夾內、不是資料夾類型、沒有被刪除
-  const query = encodeURIComponent(
-    `'${folderId}' in parents and mimeType!='application/vnd.google-apps.folder' and trashed=false`
+  const data = await listAllDriveFiles(
+    token,
+    `'${folderId}' in parents and mimeType!='application/vnd.google-apps.folder' and trashed=false`,
+    'id,name,size,createdTime,mimeType',
+    'createdTime desc'
   );
-  const res = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,size,createdTime,mimeType)&orderBy=createdTime desc&supportsAllDrives=true&includeItemsFromAllDrives=true`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  const data = await res.json();
   return new Response(JSON.stringify(data), {
     headers: { ...headers, 'Content-Type': 'application/json' },
   });
