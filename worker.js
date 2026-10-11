@@ -1055,12 +1055,12 @@ async function notifyConvert(token, message) {
       console.error(`[monthlyConvert] 小幫手 Users 頁籤找不到「${name}」`);
       continue;
     }
-    // A 發送時間｜B 對象｜C 類型｜D 內容｜E、F 不用｜G 狀態留空＝待發送｜H 由發送程式填｜I 對象名稱
-    rows.push([time, user[0], 'text', message, '', '', '', '', user[1]]);
+    // A 發送時間｜B 對象｜C 類型｜D 內容｜E、F 不用｜G 狀態＝pending 才會被發送程式撿走
+    rows.push([time, user[0], 'text', message, '', '', 'pending']);
   }
   if (!rows.length) return;
   const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_HELPER_SHEET_ID}/values/Schedule!A:I:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_HELPER_SHEET_ID}/values/Schedule!A:G:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
