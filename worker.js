@@ -30,6 +30,9 @@ const MONTHLY_CONVERT_CRON = '0 0 20,25 * *';
 // 圖庫頁網址：分享短連結 /s/<資料夾 ID> 打開後轉到這裡
 const GALLERY_PAGE_URL = 'https://tjc-km.github.io/LimingUploader/gallery.html';
 
+// 分享短連結在 LINE 預覽卡片上，相簿名稱下面的那行說明（照片會陸續增加，所以不放張數）
+const SHARE_DESCRIPTION = '黎明寶庫・到如今耶和華都幫助我們。歡迎上傳聚會、團契的照片與檔案。';
+
 // ========================================
 // CORS 設定：讓瀏覽器允許跨網域請求
 // 每次請求都會帶上這些 headers
@@ -414,14 +417,23 @@ async function listFiles(token, folderId, headers) {
   });
 }
 
-// 相簿分享頁：LINE 等預覽讀 og 標籤（相簿名稱、張數、第一張照片），瀏覽器打開後馬上轉到圖庫頁
+// 相簿分享頁：LINE 等預覽讀 og 標籤（相簿名稱、固定說明、第一張照片），瀏覽器打開後馬上轉到圖庫頁
 async function sharePage(token, folderId, shareOrigin) {
-  const [folderRes, list] = await Promise.all([
+  // 依檔名排序的第一個照片（或影片）當封面，只查一筆
+  const firstOf = async type => {
+    const q = `'${folderId}' in parents and mimeType contains '${type}/' and trashed=false`;
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&orderBy=name&pageSize=1&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return (await res.json()).files?.[0];
+  };
+  const [folderRes, firstImage] = await Promise.all([
     fetch(
       `https://www.googleapis.com/drive/v3/files/${folderId}?fields=name,mimeType,trashed&supportsAllDrives=true`,
       { headers: { Authorization: `Bearer ${token}` } }
     ),
-    listAllDriveFiles(token, `'${folderId}' in parents and trashed=false`, 'id,mimeType', 'name'),
+    firstOf('image'),
   ]);
   const folder = await folderRes.json();
   const html = (status, body) => new Response(body, {
@@ -436,20 +448,11 @@ async function sharePage(token, folderId, shareOrigin) {
 <p>找不到這本相簿</p><p style="font-size:16px;color:#888">可能已經被移走或刪除</p></body></html>`);
   }
 
-  const items = list.files || [];
-  const images = items.filter(f => f.mimeType?.startsWith('image/'));
-  const videos = items.filter(f => f.mimeType?.startsWith('video/'));
-  const folders = items.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
-  const counts = [
-    images.length && `照片 ${images.length} 張`,
-    videos.length && `影片 ${videos.length} 部`,
-    folders.length && `資料夾 ${folders.length} 個`,
-  ].filter(Boolean);
-  const cover = images[0] || videos[0];
+  const cover = firstImage || await firstOf('video');
 
   const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
   const title = esc(folder.name);
-  const description = esc([...counts, '黎明寶庫'].join('・'));
+  const description = esc(SHARE_DESCRIPTION);
   const image = cover
     ? `https://lh3.googleusercontent.com/d/${cover.id}=w600`
     : new URL('logo_10th.png', GALLERY_PAGE_URL).href;
