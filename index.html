@@ -491,7 +491,16 @@
   const SHARE_URL = 'https://share.liming-tjc.org';
   const galleryShareUrl = id => `${SHARE_URL}/s/${id}`;
 
-  document.getElementById('version-footer').textContent = '最後發布時間：2026-10-21 00:00';
+  // 最後發布時間：GitHub Pages 回傳的檔案修改時間，就是每次推送後網頁重新發布的時間，換成台灣時間顯示
+  {
+    const published = new Date(document.lastModified);
+    if (!isNaN(published)) {
+      const tw = new Date(published.getTime() + 8 * 60 * 60 * 1000);
+      const p = n => String(n).padStart(2, '0');
+      document.getElementById('version-footer').textContent =
+        `最後發布時間：${tw.getUTCFullYear()}-${p(tw.getUTCMonth() + 1)}-${p(tw.getUTCDate())} ${p(tw.getUTCHours())}:${p(tw.getUTCMinutes())}`;
+    }
+  }
 
   let CATEGORIES = [];
 
