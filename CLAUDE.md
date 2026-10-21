@@ -9,7 +9,7 @@
 | `upload.js` | 上傳引擎（分段續傳、斷線自動繼續、略過已存在檔案），index.html 與 gallery.html 共用；修改後要更新兩個頁面引用處的 `?v=` 版本號 |
 | `mp3-trim.js` | MP3 去頭去尾（直接切 frame、不重新壓縮），index.html 檔案列表的「剪輯」使用；修改後要更新 index.html 引用處的 `?v=` 版本號 |
 | `print.html` | A4 圖片列印工具（手機選圖、旋轉、縮放、上中下位置，直接列印或存成 PDF），純前端不上傳也不呼叫 Worker；首頁入口是類別設定 Sheet 裡一列 `type = link` 的類別 |
-| `worker.js` | Cloudflare Worker 後端，需手動部署（已納入 git 版控） |
+| `worker.js` | Cloudflare Worker 後端，需手動部署（見「Worker 部署方式」，已納入 git 版控） |
 
 **後端 API：** `https://liminguploader.c3012312.workers.dev`  
 **前端網址：** `https://tjc-km.github.io/LimingUploader/`
@@ -92,11 +92,27 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
 1. 在 worktree 修改 `index.html` 或 `worker.js`
 2. `git add` → `git commit`（worktree 自動 commit 到 `main-local`）
 3. `cd` 到主專案 → `git merge main-local` → `git push origin main`
-4. `worker.js` 異動時另外提醒使用者手動部署到 Cloudflare（從專案根目錄的 `worker.js` 複製到 Cloudflare Dashboard）
+4. `worker.js` 異動時另外提醒使用者手動部署到 Cloudflare（見下方「Worker 部署方式」）
+
+### Worker 部署方式
+使用者有兩台電腦，兩台的部署方式不同，部署到的都是同一個 Worker `liminguploader`：
+
+| 電腦 | 專案位置 | 部署方式 |
+|------|----------|----------|
+| 這台 | `C:\Users\c3012\source\repos\00.TjcProject\06.LimingUploader` | 把專案根目錄的 `worker.js` 貼到 Cloudflare Dashboard（連結在「注意事項」） |
+| 另一台 | `source\github\Projects\LimingUploader` | 在那台執行 `wrangler deploy` |
+
+- 開始改之前、部署之前都要先 `git pull`，用 `main` 最新的 `worker.js` 部署。後部署的版本會整個蓋掉先部署的，另一台還沒 push 的修改會不見
+- repo 裡的 `wrangler.jsonc`（name `tjclm-drive`）**不是**線上用的設定，不要在這個 repo 直接跑 `wrangler deploy`，否則會部署到另一個叫 `tjclm-drive` 的 Worker
+- 用 wrangler 部署時，設定檔要和線上一致：
+  - name 是 `liminguploader`
+  - `triggers.crons` 是 `0 0 20,25 * *`
+  - 一般變數 `FOLDER_ID`、`GEMINI_API_KEY`、`NOTION_PARENT_PAGE_ID`、`UPLOAD_PASSWORD` 都要寫進去，設定檔沒寫到的一般變數部署後會被刪掉
+- `NOTION_TOKEN`、`SERVICE_ACCOUNT_KEY` 是用 Secret 存的，兩種部署方式都不會動到
 
 ---
 
-## 排程（Cloudflare Cron Triggers，在 Dashboard 設定）
+## 排程（Cloudflare Cron Triggers）
 
 | Cron | 執行內容 |
 |------|----------|
@@ -104,12 +120,13 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
 | 其他任何 Cron | `runDailySummarize`：整理前一天的錄音重點 |
 
 - 每月轉檔的 Cron 字串必須和 `worker.js` 的 `MONTHLY_CONVERT_CRON` 一模一樣，否則會被當成每日錄音整理
+- Cron 可以在 Dashboard 設定；用 wrangler 部署時，設定檔的 `triggers.crons` 也要寫同一個字串
 
 ---
 
 ## 注意事項
 - `worker.js` 以 git 專案根目錄的版本為主，`C:\Users\c3012\Downloads\worker.js` 已廢棄，請勿再編輯
-- 修改 `worker.js` 後必須提醒使用者到以下連結手動重新部署：
+- 修改 `worker.js` 後必須提醒使用者重新部署：在這台貼到以下連結，或在另一台用 `wrangler deploy`（見「Worker 部署方式」）：
   **https://dash.cloudflare.com/8e2eb47cb86e3cfb953c89dd148b6137/workers/services/view/liminguploader/production**
 - `Users` 頁籤**有標題列**，程式讀取時會跳過第一列
 - `Schedule` 頁籤**有標題列**，程式讀取時會跳過第一列
