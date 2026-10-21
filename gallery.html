@@ -173,10 +173,12 @@
 <script src="upload.js?v=20260918"></script>
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
+  const SHARE_URL = 'https://share.liming-tjc.org'; // 相簿分享短連結（Worker 的自訂網域）
 
   const params = new URLSearchParams(location.search);
   let currentFolderId = params.get('folderId');
   const initName = params.get('name') || '黎明寶庫';
+  let currentFolderName = initName;
 
   let _images = [];
   let _lbIndex = 0;
@@ -288,7 +290,7 @@
     currentFolderId = id;
     setFolderName(name);
     document.getElementById('back-btn').style.display = '';
-    history.pushState({ folderId: id, name }, '', `?folderId=${id}&name=${name}`);
+    history.pushState({ folderId: id, name }, '', `?folderId=${id}&name=${encodeURIComponent(name)}`);
     loadGallery(id);
   }
 
@@ -309,6 +311,7 @@
   });
 
   function setFolderName(name) {
+    currentFolderName = name;
     document.getElementById('folder-name-display').textContent = name;
     document.title = name + ' — 黎明寶庫';
     document.querySelector('meta[property="og:title"]').content = name + ' — 黎明寶庫';
@@ -403,11 +406,13 @@
 
   // ── 複製連結 ──────────────────────────────
 
+  // 分享短連結：LINE 預覽會顯示相簿名稱與第一張照片
   function copyLink() {
-    const url = location.href;
+    if (!currentFolderId) return;
+    const url = `${SHARE_URL}/s/${currentFolderId}`;
     const btn = document.getElementById('copy-btn');
     const reset = () => setTimeout(() => { btn.textContent = '🔗 分享'; btn.classList.remove('copied'); }, 2000);
-    navigator.clipboard.writeText(url).then(() => {
+    navigator.clipboard.writeText(`📷 ${currentFolderName}\n${url}`).then(() => {
       btn.textContent = '✓ 已複製'; btn.classList.add('copied'); reset();
     }).catch(() => { prompt('複製以下連結：', url); });
   }

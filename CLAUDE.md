@@ -12,7 +12,8 @@
 | `worker.js` | Cloudflare Worker 後端，需手動部署（見「Worker 部署方式」，已納入 git 版控） |
 
 **後端 API：** `https://liminguploader.c3012312.workers.dev`  
-**前端網址：** `https://tjc-km.github.io/LimingUploader/`
+**前端網址：** `https://tjc-km.github.io/LimingUploader/`  
+**相簿分享短連結：** `https://share.liming-tjc.org/s/<資料夾 ID>`（同一個 Worker 的自訂網域；`liming-tjc.org` 由使用者管理，主網站在 GitHub Pages，只有 `share` 子網域指向 Worker）
 
 ---
 
@@ -107,6 +108,7 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
 - 用 wrangler 部署時，設定檔要和線上一致：
   - name 是 `liminguploader`
   - `triggers.crons` 是 `0 0 20,25 * *`
+  - `routes` 要有分享短連結的自訂網域：`[{ "pattern": "share.liming-tjc.org", "custom_domain": true }]`
   - 一般變數 `FOLDER_ID`、`GEMINI_API_KEY`、`NOTION_PARENT_PAGE_ID`、`UPLOAD_PASSWORD` 都要寫進去，設定檔沒寫到的一般變數部署後會被刪掉
 - `NOTION_TOKEN`、`SERVICE_ACCOUNT_KEY` 是用 Secret 存的，兩種部署方式都不會動到
 

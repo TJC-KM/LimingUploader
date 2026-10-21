@@ -487,7 +487,11 @@
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
 
-  document.getElementById('version-footer').textContent = '最後發布時間：2026-09-18 00:00';
+  // 相簿分享短連結（Worker 的自訂網域）：LINE 預覽會顯示相簿名稱與第一張照片
+  const SHARE_URL = 'https://share.liming-tjc.org';
+  const galleryShareUrl = id => `${SHARE_URL}/s/${id}`;
+
+  document.getElementById('version-footer').textContent = '最後發布時間：2026-10-21 00:00';
 
   let CATEGORIES = [];
 
@@ -704,8 +708,7 @@
     closeFolderModal();
     loadFolders();
     if (data && data.id) {
-      const base = location.href.replace(/[^\/]*$/, '');
-      const url = `${base}gallery.html?folderId=${data.id}&name=${encodeURIComponent(name)}`;
+      const url = galleryShareUrl(data.id);
       _createdFolder = { id: data.id, name, url };
       document.getElementById('folder-created-name').textContent = `📁 ${name}`;
       document.getElementById('folder-created-link').value = url;
@@ -724,7 +727,7 @@
   async function copyCreatedFolderLink() {
     if (!_createdFolder) return;
     try {
-      await navigator.clipboard.writeText(_createdFolder.url);
+      await navigator.clipboard.writeText(`📷 ${_createdFolder.name}\n${_createdFolder.url}`);
       const btn = document.getElementById('folder-created-copy');
       btn.textContent = '✓ 已複製';
       btn.style.background = '#3B6D11';
@@ -1158,11 +1161,10 @@
     const id = currentFolderId || currentCategoryId;
     if (!id) { alert('請先選擇資料夾'); return; }
     const name = currentFolderName || currentCategoryName;
-    const base = location.href.replace(/[^\/]*$/, '');
-    const url = `${base}gallery.html?folderId=${id}&name=${name}`;
+    const url = galleryShareUrl(id);
     const btn = document.getElementById('share-gallery-btn');
     const reset = () => setTimeout(() => { btn.textContent = '🔗 分享'; btn.style.color = ''; }, 2000);
-    navigator.clipboard.writeText(url).then(() => {
+    navigator.clipboard.writeText(`📷 ${name}\n${url}`).then(() => {
       btn.textContent = '✓ 已複製'; btn.style.color = '#3B6D11'; reset();
     }).catch(() => {
       prompt('複製以下連結：', url);
