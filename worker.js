@@ -27,6 +27,9 @@ const SCHEDULE_HELPER_SHEET_ID = '1F7fP03oexK4lrerV-hRHM1ooKirwZnuguCerGK6jogo';
 // 每月 20、25 號 UTC 00:00 = 台灣 08:00；25 號只補做 20 號沒成功的
 const MONTHLY_CONVERT_CRON = '0 0 20,25 * *';
 
+// 圖庫頁網址：分享短連結 /s/<資料夾 ID> 打開後轉到這裡
+const GALLERY_PAGE_URL = 'https://tjc-km.github.io/LimingUploader/gallery.html';
+
 // ========================================
 // CORS 設定：讓瀏覽器允許跨網域請求
 // 每次請求都會帶上這些 headers
@@ -89,6 +92,13 @@ export default {
         const token = await getAccessToken(env);
         const folderId = url.searchParams.get('folderId');
         return await listFiles(token, folderId, headers);
+      }
+
+      // 相簿分享短連結（公開）：給 LINE 預覽看相簿名稱與封面，打開後轉到圖庫頁
+      const shareMatch = path.match(/^\/s\/([A-Za-z0-9_-]+)$/);
+      if (shareMatch && method === 'GET') {
+        const token = await getAccessToken(env);
+        return await sharePage(token, shareMatch[1], url.origin);
       }
 
       // 取得發送對象清單（公開，從 Users 頁籤讀取）
@@ -402,6 +412,62 @@ async function listFiles(token, folderId, headers) {
   return new Response(JSON.stringify(data), {
     headers: { ...headers, 'Content-Type': 'application/json' },
   });
+}
+
+// 相簿分享頁：LINE 等預覽讀 og 標籤（相簿名稱、張數、第一張照片），瀏覽器打開後馬上轉到圖庫頁
+async function sharePage(token, folderId, shareOrigin) {
+  const [folderRes, list] = await Promise.all([
+    fetch(
+      `https://www.googleapis.com/drive/v3/files/${folderId}?fields=name,mimeType,trashed&supportsAllDrives=true`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    ),
+    listAllDriveFiles(token, `'${folderId}' in parents and trashed=false`, 'id,mimeType', 'name'),
+  ]);
+  const folder = await folderRes.json();
+  const html = (status, body) => new Response(body, {
+    status,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=300' },
+  });
+
+  if (!folderRes.ok || folder.mimeType !== 'application/vnd.google-apps.folder' || folder.trashed) {
+    return html(404, `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"><title>黎明寶庫</title></head>
+<body style="font-family:sans-serif;text-align:center;padding:48px 16px;font-size:20px;color:#444">
+<p>找不到這本相簿</p><p style="font-size:16px;color:#888">可能已經被移走或刪除</p></body></html>`);
+  }
+
+  const items = list.files || [];
+  const images = items.filter(f => f.mimeType?.startsWith('image/'));
+  const videos = items.filter(f => f.mimeType?.startsWith('video/'));
+  const folders = items.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+  const counts = [
+    images.length && `照片 ${images.length} 張`,
+    videos.length && `影片 ${videos.length} 部`,
+    folders.length && `資料夾 ${folders.length} 個`,
+  ].filter(Boolean);
+  const cover = images[0] || videos[0];
+
+  const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+  const title = esc(folder.name);
+  const description = esc([...counts, '黎明寶庫'].join('・'));
+  const image = cover
+    ? `https://lh3.googleusercontent.com/d/${cover.id}=w600`
+    : new URL('logo_10th.png', GALLERY_PAGE_URL).href;
+  const target = `${GALLERY_PAGE_URL}?folderId=${folderId}&name=${encodeURIComponent(folder.name)}`;
+
+  return html(200, `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title} — 黎明寶庫</title>
+<meta property="og:site_name" content="黎明寶庫">
+<meta property="og:title" content="${title}">
+<meta property="og:description" content="${description}">
+<meta property="og:image" content="${esc(image)}">
+<meta property="og:url" content="${esc(`${shareOrigin}/s/${folderId}`)}">
+<meta property="og:type" content="website">
+<script>location.replace(${JSON.stringify(target)});</script>
+</head><body style="font-family:sans-serif;text-align:center;padding:48px 16px;font-size:20px;color:#444">
+<p>正在打開「${title}」…</p>
+<p><a href="${esc(target)}">沒有自動打開請按這裡</a></p></body></html>`);
 }
 
 // 重新命名檔案或資料夾
