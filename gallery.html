@@ -24,14 +24,17 @@
   .btn-copy-link { padding: 7px 14px; background: #378ADD; color: #fff; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
   .btn-copy-link:hover { background: #2d72c0; }
   .btn-copy-link.copied { background: #3B6D11; }
-  .header-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  /* 三個按鈕平分寬度，每個按鈕下面一行使用說明 */
+  .header-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 390px; flex-shrink: 0; }
+  .header-action { display: flex; flex-direction: column; gap: 4px; text-align: center; }
+  .header-action button { width: 100%; }
+  .action-desc { font-size: 12px; color: #888; line-height: 1.4; }
   .btn-drive-link { padding: 6px 13px; background: #fff; color: #333; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
   .btn-drive-link:hover { border-color: #378ADD; color: #378ADD; }
-  /* 手機放不下名稱加三個按鈕：名稱一行，按鈕另起一行平分寬度 */
+  /* 手機放不下名稱加三個按鈕：名稱一行，按鈕另起一行 */
   @media (max-width: 480px) {
     .gallery-header { flex-wrap: wrap; }
-    .header-left, .header-actions { flex: 1 1 100%; }
-    .header-actions button { flex: 1; }
+    .header-left, .header-actions { flex: 1 1 100%; width: auto; }
   }
 
   /* Section labels */
@@ -136,9 +139,18 @@
       <div class="page-title">📁 <span class="folder-name-span" id="folder-name-display">黎明寶庫</span></div>
     </div>
     <div class="header-actions">
-      <button class="btn-upload" id="upload-btn" onclick="openUpload()">📤 上傳</button>
-      <button class="btn-drive-link" onclick="openDriveFolder()" title="在 Google 雲端硬碟開啟（需有權限）">☁️ G雲端</button>
-      <button class="btn-copy-link" id="copy-btn" onclick="copyLink()">🔗 分享</button>
+      <div class="header-action">
+        <button class="btn-upload" id="upload-btn" onclick="openUpload()">📤 上傳</button>
+        <span class="action-desc">約 100 個<br>以內的檔案</span>
+      </div>
+      <div class="header-action">
+        <button class="btn-drive-link" onclick="openDriveFolder()" title="在 Google 雲端硬碟開啟（需有權限）">📂 G雲端</button>
+        <span class="action-desc">檔案超多<br>或超大時用</span>
+      </div>
+      <div class="header-action">
+        <button class="btn-copy-link" id="copy-btn" onclick="copyLink()">🔗 分享</button>
+        <span class="action-desc">邀請別人<br>一起收集檔案</span>
+      </div>
     </div>
   </div>
 
