@@ -109,6 +109,8 @@
   .upload-summary.info { background: #f0f7ff; color: #185FA5; border: 1px solid #cfe2f7; }
   .upload-summary-tip { font-size: 12px; opacity: 0.85; }
   .upload-retry-btn { margin-top: 8px; padding: 6px 14px; background: #378ADD; color: #fff; border: none; border-radius: 8px; font-size: 12px; cursor: pointer; }
+  .upload-retry-btn + .upload-retry-btn { margin-left: 8px; }
+  .upload-retry-btn.secondary { background: #fff; color: #666; border: 1px solid #ddd; }
   .upload-item-status.skipped { color: #aaa; }
   .upload-item-status.waiting { color: #b7791f; }
   #resume-notice { margin: 0 0 16px; }
@@ -482,7 +484,7 @@
   <div class="version-footer" id="version-footer"></div>
 </div>
 
-<script src="upload.js?v=20260918"></script>
+<script src="upload.js?v=20261023"></script>
 <script src="mp3-trim.js?v=20260918"></script>
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
@@ -853,6 +855,13 @@
       const here = currentFolderId || currentCategoryId;
       if (here && folderIds.includes(here)) loadFiles(here);
     },
+    // 按「繼續上傳」時切到那個資料夾，上傳清單才看得到
+    onResume: ({ folderId, folderName, categoryId }) => {
+      const cat = CATEGORIES.find(c => c.id === (categoryId || folderId));
+      if (!cat) return;
+      if (currentCategoryId !== cat.id) selectCategory(cat.id, cat.name);
+      if (folderId !== cat.id && currentFolderId !== folderId) selectFolder(folderId, folderName.split(' › ').pop());
+    },
   });
 
   async function handleFiles(files) {
@@ -884,7 +893,7 @@
     if (queue.length === 0) return;
 
     // 分段續傳、斷線自動繼續、略過已存在的檔案都在 upload.js 處理
-    LimingUploader.add(queue, { folderId, folderName });
+    LimingUploader.add(queue, { folderId, folderName, categoryId: currentCategoryId });
   }
 
   let _uploadRenameResolve = null;

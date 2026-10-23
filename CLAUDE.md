@@ -6,7 +6,7 @@
 |------|------|
 | `index.html` | 主要前端頁面，部署於 GitHub Pages |
 | `gallery.html` | 分享用圖庫頁（也可上傳），部署於 GitHub Pages |
-| `upload.js` | 上傳引擎（分段續傳、斷線自動繼續、略過已存在檔案），index.html 與 gallery.html 共用；修改後要更新兩個頁面引用處的 `?v=` 版本號 |
+| `upload.js` | 上傳引擎（分段續傳、斷線自動繼續、略過已存在檔案、關掉頁面後可一鍵繼續：檔案記在 IndexedDB），index.html 與 gallery.html 共用；修改後要更新兩個頁面引用處的 `?v=` 版本號 |
 | `mp3-trim.js` | MP3 去頭去尾（直接切 frame、不重新壓縮），index.html 檔案列表的「剪輯」使用；修改後要更新 index.html 引用處的 `?v=` 版本號 |
 | `print.html` | A4 圖片列印工具（手機選圖、旋轉、縮放、上中下位置，直接列印或存成 PDF），純前端不上傳也不呼叫 Worker；首頁入口是類別設定 Sheet 裡一列 `type = link` 的類別 |
 | `worker.js` | Cloudflare Worker 後端，需手動部署（見「Worker 部署方式」，已納入 git 版控） |

@@ -6,7 +6,8 @@
 // - 斷網時暫停，恢復連線後自動繼續，不會把整批檔案都標成失敗
 // - 上傳期間請求螢幕保持開啟（Screen Wake Lock，瀏覽器不支援就略過）
 // - 目標資料夾已有同名、同大小的檔案就略過，重選同一批檔案不會重複上傳
-// - 續傳網址記在 localStorage，頁面被關掉後重選同一批檔案可以接著傳
+// - 續傳網址記在 localStorage、選好的檔案記在 IndexedDB：頁面被關掉後再打開，按「繼續上傳」就從斷點接著傳，
+//   不用重選檔案；瀏覽器存不下或已經清掉的檔案才需要重選同一批
 //
 // ⚠️ 修改此檔後，記得更新 index.html、gallery.html 引用此檔的 ?v= 版本號
 // ========================================
@@ -19,11 +20,13 @@ const LimingUploader = (() => {
   const SESSION_TTL = 6 * 24 * 60 * 60 * 1000;    // Google 續傳網址約一週失效，保守抓 6 天
   const SESSIONS_KEY = 'liming-upload-sessions';  // localStorage：檔案 → 續傳網址
   const PENDING_KEY = 'liming-upload-pending';    // localStorage：還沒傳完的檔案
+  const DB_NAME = 'liming-upload';                // IndexedDB：還沒傳完的檔案本體
+  const DB_STORE = 'files';
   const BUSY_STATES = ['checking', 'queued', 'uploading', 'retrying', 'offline'];
 
   let workerUrl = '';
   let chunkSize = 8 * 1024 * 1024;                // 必須是 256 KB 的倍數
-  let listEl = null, statusEl = null, noticeEl = null, onDone = null;
+  let listEl = null, statusEl = null, noticeEl = null, onDone = null, onResume = null;
 
   let tasks = [];             // 本輪上傳的檔案
   let active = 0;             // 正在上傳的檔案數
@@ -38,9 +41,9 @@ const LimingUploader = (() => {
     statusEl = options.statusEl || null;
     noticeEl = options.noticeEl || null;
     onDone = options.onDone || null;
+    onResume = options.onResume || null;   // 按「繼續上傳」時先呼叫，讓頁面切到那個資料夾、顯示上傳清單
     if (options.chunkSize) chunkSize = options.chunkSize;
-    pruneStore();
-    renderNotice();
+    pruneStore().then(renderNotice);
   }
 
   // 有檔案在上傳，或有其他長時間作業進行中（這段期間保持螢幕開啟、離開頁面前提醒）
@@ -71,8 +74,9 @@ const LimingUploader = (() => {
 
   // ── 加入上傳 ─────────────────────────────
 
-  // items: [{ file, fileName? }]，全部上傳到同一個資料夾
-  async function add(items, { folderId, folderName }) {
+  // items: [{ file, fileName?, stored? }]，全部上傳到同一個資料夾；stored 代表檔案已經在 IndexedDB 裡（續傳時）
+  // categoryId 只是記下來，續傳時交給頁面的 onResume 切換畫面用
+  async function add(items, { folderId, folderName, categoryId }) {
     if (noticeEl) noticeEl.style.display = 'none';
     // 上一輪已經結束：清掉成功與略過的，保留失敗的讓使用者還能重試
     if (!tasksBusy()) tasks = tasks.filter(t => t.state === 'failed');
@@ -80,10 +84,10 @@ const LimingUploader = (() => {
 
     const checking = [];
     const frag = document.createDocumentFragment();
-    for (const { file, fileName } of items) {
+    for (const { file, fileName, stored } of items) {
       const name = fileName || file.name;
       const t = {
-        file, fileName: name, folderId, folderName,
+        file, fileName: name, folderId, folderName, categoryId: categoryId || null, stored: !!stored,
         mimeType: file.type || 'application/octet-stream',
         key: `${folderId}|${name}|${file.size}`,
         state: 'checking', note: '', error: '',
@@ -105,6 +109,7 @@ const LimingUploader = (() => {
     }
     listEl.prepend(frag);
     markPending(checking);
+    saveFiles(checking.filter(t => !t.stored));
     renderStatus();
 
     const existing = await fetchExisting(folderId);
@@ -397,7 +402,7 @@ const LimingUploader = (() => {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* 無痕模式等情況存不了就算了 */ }
   }
 
-  function pruneStore() {
+  async function pruneStore() {
     const now = Date.now();
     const sessions = readStore(SESSIONS_KEY);
     for (const k in sessions) if (now - sessions[k].savedAt > SESSION_TTL) delete sessions[k];
@@ -405,6 +410,9 @@ const LimingUploader = (() => {
     const pending = readStore(PENDING_KEY);
     for (const k in pending) if (now - pending[k].updatedAt > SESSION_TTL) delete pending[k];
     writeStore(PENDING_KEY, pending);
+    // 續傳網址過期後，留著的檔案也沒用了
+    const stale = (await loadFiles()).filter(r => now - r.savedAt > SESSION_TTL);
+    await Promise.all(stale.map(r => deleteFile(r.key)));
   }
 
   function loadSession(key) {
@@ -435,12 +443,112 @@ const LimingUploader = (() => {
   }
 
   function clearPending(t) {
+    deleteFile(t.key);
     const pending = readStore(PENDING_KEY);
     const folder = pending[t.folderId];
     if (!folder) return;
     delete folder.files[t.key];
     if (!Object.keys(folder.files).length) delete pending[t.folderId];
     writeStore(PENDING_KEY, pending);
+  }
+
+  // ── IndexedDB：還沒傳完的檔案本體 ─────────
+  // localStorage 放不下檔案，所以另外記在這裡。Chrome 多半只記檔案位置，Safari 會複製一份，
+  // 所以存之前先看剩餘空間，存不下的就不存（下次只能重選）
+
+  let dbPromise = null;
+  const saving = new Map();   // key → 正在寫入的批次；刪除前要等它寫完，才不會留下孤兒紀錄
+
+  function openDb() {
+    if (!dbPromise) {
+      dbPromise = new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE, { keyPath: 'key' });
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      dbPromise.catch(() => { dbPromise = null; });
+    }
+    return dbPromise;
+  }
+
+  // 在 files 物件庫上跑一個交易，交易完成後回傳 fn 建立的 request 結果
+  async function dbRun(mode, fn) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, mode);
+      const req = fn(tx.objectStore(DB_STORE));
+      tx.oncomplete = () => resolve(req && req.result);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  }
+
+  async function loadFiles() {
+    try { return (await dbRun('readonly', s => s.getAll())) || []; } catch (e) { return []; }
+  }
+
+  // 還能用的儲存空間，留兩成緩衝；估不出來就當作沒有上限
+  async function storageBudget() {
+    try {
+      const { quota = 0, usage = 0 } = await navigator.storage.estimate();
+      return quota ? Math.max(0, quota - usage) * 0.8 : Infinity;
+    } catch (e) { return Infinity; }
+  }
+
+  function saveFiles(list) {
+    if (!list.length) return;
+    const batch = (async () => {
+      let budget = await storageBudget();
+      for (const t of list) {
+        // 查完已存在而略過的不用存；空間不夠的不存
+        if (!BUSY_STATES.includes(t.state) || t.file.size > budget) continue;
+        try {
+          await dbRun('readwrite', s => s.put({
+            key: t.key, file: t.file, fileName: t.fileName,
+            folderId: t.folderId, folderName: t.folderName, categoryId: t.categoryId, savedAt: Date.now(),
+          }));
+          budget -= t.file.size;
+        } catch (e) { /* 無痕模式、空間不足等情況存不了就算了 */ }
+      }
+    })();
+    list.forEach(t => saving.set(t.key, batch));
+    batch.then(() => list.forEach(t => { if (saving.get(t.key) === batch) saving.delete(t.key); }));
+  }
+
+  async function deleteFile(key) {
+    try {
+      await saving.get(key);
+      await dbRun('readwrite', s => s.delete(key));
+    } catch (e) { /* 同上 */ }
+  }
+
+  function clearFiles() {
+    dbRun('readwrite', s => s.clear()).catch(() => {});
+  }
+
+  // 把記在 IndexedDB 裡的檔案重新排入上傳；瀏覽器已經讀不到的（例如 Android 清掉了暫存副本）就提醒重選
+  async function resumeStored() {
+    const stored = await loadFiles();
+    const groups = new Map();
+    let gone = 0;
+    for (const r of stored) {
+      try {
+        await r.file.slice(0, 1).arrayBuffer();
+      } catch (e) {
+        gone++;
+        deleteFile(r.key);
+        continue;
+      }
+      const g = groups.get(r.folderId) ||
+        groups.set(r.folderId, { folderId: r.folderId, folderName: r.folderName, categoryId: r.categoryId, items: [] }).get(r.folderId);
+      g.items.push({ file: r.file, fileName: r.fileName, stored: true });
+    }
+    noticeEl.style.display = 'none';
+    const first = groups.values().next().value;
+    if (first && onResume) onResume(first);
+    for (const g of groups.values()) await add(g.items, g);
+    if (gone) renderNotice();
   }
 
   // ── 畫面 ─────────────────────────────────
@@ -523,21 +631,40 @@ const LimingUploader = (() => {
     statusEl.appendChild(btn);
   }
 
-  // 上次頁面被關掉時還有檔案沒傳完，提醒使用者重選同一批檔案
-  function renderNotice() {
+  // 上次頁面被關掉時還有檔案沒傳完：檔案還在 IndexedDB 裡的可以一鍵繼續，其他的提醒重選同一批
+  async function renderNotice() {
     if (!noticeEl) return;
-    const folders = Object.values(readStore(PENDING_KEY)).filter(f => Object.keys(f.files).length);
+    const stored = await loadFiles();
+    const pending = readStore(PENDING_KEY);
+    // 依資料夾彙整還沒傳完的檔案
+    const folders = new Map();
+    const folderOf = (id, name) => folders.get(id) || folders.set(id, { folderName: name || '未命名資料夾', keys: new Set() }).get(id);
+    Object.entries(pending).forEach(([id, f]) => Object.keys(f.files).forEach(k => folderOf(id, f.folderName).keys.add(k)));
+    stored.forEach(r => folderOf(r.folderId, r.folderName).keys.add(r.key));
     noticeEl.textContent = '';
-    if (!folders.length) { noticeEl.style.display = 'none'; return; }
+    if (!folders.size) { noticeEl.style.display = 'none'; return; }
+
+    const total = [...folders.values()].reduce((n, f) => n + f.keys.size, 0);
+    const manual = total - stored.length;   // 瀏覽器沒留存檔案、只能重選的
     noticeEl.className = 'upload-summary warn';
     appendLine(noticeEl, '⚠️ 上次有檔案還沒傳完：');
-    folders.forEach(f => appendLine(noticeEl, `・📁 ${f.folderName || '未命名資料夾'}：${Object.keys(f.files).length} 個檔案`));
-    appendLine(noticeEl, '請到該資料夾重新選擇同一批檔案：已經傳完的會自動略過，沒傳完的會從中斷處繼續。', 'upload-summary-tip');
-    const btn = document.createElement('button');
-    btn.className = 'upload-retry-btn';
-    btn.textContent = '知道了';
-    btn.onclick = () => { writeStore(PENDING_KEY, {}); noticeEl.style.display = 'none'; };
-    noticeEl.appendChild(btn);
+    folders.forEach(f => appendLine(noticeEl, `・📁 ${f.folderName}：${f.keys.size} 個檔案`));
+    if (stored.length) {
+      appendLine(noticeEl, '按「繼續上傳」會從中斷的地方接著傳，不用重新選檔案。', 'upload-summary-tip');
+      if (manual > 0) appendLine(noticeEl, `其中 ${manual} 個檔案瀏覽器沒有留存，要到該資料夾重新選擇同一批檔案才會繼續。`, 'upload-summary-tip');
+      const go = document.createElement('button');
+      go.className = 'upload-retry-btn';
+      go.textContent = '▶ 繼續上傳';
+      go.onclick = () => { go.disabled = true; resumeStored(); };
+      noticeEl.appendChild(go);
+    } else {
+      appendLine(noticeEl, '請到該資料夾重新選擇同一批檔案：已經傳完的會自動略過，沒傳完的會從中斷處繼續。', 'upload-summary-tip');
+    }
+    const dismiss = document.createElement('button');
+    dismiss.className = 'upload-retry-btn' + (stored.length ? ' secondary' : '');
+    dismiss.textContent = stored.length ? '不用了' : '知道了';
+    dismiss.onclick = () => { writeStore(PENDING_KEY, {}); clearFiles(); noticeEl.style.display = 'none'; };
+    noticeEl.appendChild(dismiss);
     noticeEl.style.display = '';
   }
 

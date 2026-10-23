@@ -124,6 +124,8 @@
   .upload-summary.info { background: #f0f7ff; color: #185FA5; border: 1px solid #cfe2f7; }
   .upload-summary-tip { font-size: 12px; opacity: 0.85; }
   .upload-retry-btn { margin-top: 8px; padding: 6px 14px; background: #378ADD; color: #fff; border: none; border-radius: 8px; font-size: 12px; cursor: pointer; }
+  .upload-retry-btn + .upload-retry-btn { margin-left: 8px; }
+  .upload-retry-btn.secondary { background: #fff; color: #666; border: 1px solid #ddd; }
   .upload-item-status.skipped { color: #aaa; }
   .upload-item-status.waiting { color: #b7791f; }
   #resume-notice { margin: 0 0 16px; }
@@ -182,7 +184,7 @@
   <div class="lb-caption" id="lb-caption"></div>
 </div>
 
-<script src="upload.js?v=20260918"></script>
+<script src="upload.js?v=20261023"></script>
 <script>
   const WORKER_URL = 'https://liminguploader.c3012312.workers.dev';
   const SHARE_URL = 'https://share.liming-tjc.org'; // 相簿分享短連結（Worker 的自訂網域）
@@ -388,6 +390,8 @@
     noticeEl: document.getElementById('resume-notice'),
     // 上傳結束時，如果還停在上傳的資料夾就重新整理
     onDone: folderIds => { if (folderIds.includes(currentFolderId)) loadGallery(currentFolderId); },
+    // 按「繼續上傳」時打開上傳進度面板
+    onResume: () => { document.getElementById('upload-panel').style.display = ''; },
   });
 
   function handleFiles(files) {
