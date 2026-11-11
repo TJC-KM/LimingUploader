@@ -33,6 +33,22 @@ const GALLERY_PAGE_URL = 'https://tjc-km.github.io/LimingUploader/gallery.html';
 // 分享短連結在 LINE 預覽卡片上，相簿名稱下面的那行說明（照片會陸續增加，所以不放張數）
 const SHARE_DESCRIPTION = '黎明寶庫・到如今耶和華都幫助我們。歡迎上傳聚會、團契的照片與檔案。';
 
+// 年度活動規劃（planner.html）的試算表「黎明教會行事曆」，資料在「活動」分頁
+const PLANNER_SHEET_ID = '1k6PYM8xtnwSIxP20bTmI2hhEEVPlb2XI8M7IjzY26ws';
+
+// 年度活動規劃：前端用的代碼 → 試算表「團契」欄的文字（要和試算表的下拉選單一致）
+const PLAN_GROUPS = {
+  youth: '社青團契',
+  core: '中堅團契',
+  caleb: '迦勒團契',
+  family: '全家信主團契',
+  choir: '成人詩班',
+  church: '教會與中區',
+};
+// 「誰會參加」欄：自己／家屬／全教會，或填團契名稱（中區聯契用，表示那個團契的人）
+const PLAN_AUDIENCE = { self: '自己', family: '家屬', all: '全教會' };
+const PLAN_DISTRICT_GROUPS = ['youth', 'core', 'caleb'];
+
 // ========================================
 // CORS 設定：讓瀏覽器允許跨網域請求
 // 每次請求都會帶上這些 headers
@@ -108,6 +124,24 @@ export default {
       if (path === '/users' && method === 'GET') {
         const token = await getAccessToken(env);
         return await getUsers(token, headers);
+      }
+
+      // 年度活動規劃（公開，不用密碼）：讀取全部活動
+      if (path === '/plan' && method === 'GET') {
+        const token = await getAccessToken(env);
+        return await getPlanEvents(token, headers);
+      }
+
+      // 年度活動規劃：新增或修改一個活動（有 id 是修改）
+      if (path === '/plan' && method === 'POST') {
+        const token = await getAccessToken(env);
+        return await savePlanEvent(token, await request.json(), headers);
+      }
+
+      // 年度活動規劃：刪除一個活動（填「刪除時間」，那一列不會真的刪掉）
+      if (path === '/plan/delete' && method === 'POST') {
+        const token = await getAccessToken(env);
+        return await deletePlanEvent(token, await request.json(), headers);
       }
 
       // ========================================
@@ -631,6 +665,200 @@ async function addScheduleRow(token, body, headers) {
     status: res.status,
     headers: { ...headers, 'Content-Type': 'application/json' },
   });
+}
+
+// ========================================
+// 年度活動規劃（planner.html）
+// 「活動」分頁（含標題列）：A 編號｜B 團契｜C 活動名稱｜D 開始日期｜E 結束日期｜F 誰會參加｜G 狀態｜H 時間｜I 備註｜J 建立時間｜K 修改時間｜L 刪除時間
+// 刪除只填 L，不刪列：修改是用列的位置寫回去，刪列會讓位置跑掉
+// ========================================
+
+function planJson(data, headers, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...headers, 'Content-Type': 'application/json' },
+  });
+}
+
+// 台灣時間 yyyy-mm-dd hh:mm，和試算表時間欄的格式相同
+function taipeiNowText() {
+  const t = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  const p = n => String(n).padStart(2, '0');
+  return `${t.getUTCFullYear()}-${p(t.getUTCMonth() + 1)}-${p(t.getUTCDate())} ${p(t.getUTCHours())}:${p(t.getUTCMinutes())}`;
+}
+
+function isPlanDate(s) {
+  return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s));
+}
+
+function planGroupCode(name) {
+  return Object.keys(PLAN_GROUPS).find(code => PLAN_GROUPS[code] === name) || null;
+}
+
+// 讀「活動」分頁第 2 列以後；陣列第 0 筆是試算表第 2 列
+async function readPlanRows(token) {
+  const range = encodeURIComponent('活動!A2:L');
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${PLANNER_SHEET_ID}/values/${range}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const data = await res.json();
+  if (data.error) throw new Error('讀不到活動試算表：' + data.error.message);
+  return data.values || [];
+}
+
+// 試算表的一列 → 前端用的活動；已刪除、沒有編號、團契或日期認不得的列傳回 null（不顯示）
+function planRowToEvent(row) {
+  const cell = i => String(row[i] || '').trim();
+  const id = cell(0);
+  const group = planGroupCode(cell(1));
+  const date = cell(3);
+  if (!id || !group || !isPlanDate(date) || cell(11)) return null;
+
+  let audience = Object.keys(PLAN_AUDIENCE).find(k => PLAN_AUDIENCE[k] === cell(5));
+  if (!audience) {
+    const code = planGroupCode(cell(5));
+    if (PLAN_DISTRICT_GROUPS.includes(code)) audience = code;
+  }
+  if (!audience) audience = group === 'church' ? 'all' : 'self';
+
+  const ev = {
+    id,
+    group,
+    title: cell(2) || '（沒有名稱）',
+    date,
+    audience,
+    status: cell(6) === '確定' ? 'confirmed' : 'tentative',
+  };
+  if (isPlanDate(cell(4)) && cell(4) > date) ev.endDate = cell(4);
+  if (/^\d{1,2}:\d{2}$/.test(cell(7))) ev.time = cell(7).padStart(5, '0');
+  if (cell(8)) ev.note = cell(8);
+  return ev;
+}
+
+// 檢查前端送來的活動，有問題回傳給使用者看的訊息
+function planCheck(ev) {
+  if (!ev || typeof ev !== 'object') return '資料格式不對';
+  if (!PLAN_GROUPS[ev.group]) return '不認得這個團契';
+  const title = String(ev.title || '').trim();
+  if (!title) return '請填活動名稱';
+  if (title.length > 60) return '活動名稱請在 60 個字以內';
+  if (!isPlanDate(ev.date)) return '日期格式不對';
+  if (ev.endDate && (!isPlanDate(ev.endDate) || ev.endDate < ev.date)) return '「到哪一天」不能比開始日期早';
+  if (!PLAN_AUDIENCE[ev.audience] && !PLAN_DISTRICT_GROUPS.includes(ev.audience)) return '「誰會參加」不對';
+  if (ev.status !== 'tentative' && ev.status !== 'confirmed') return '「日期定了嗎」不對';
+  if (ev.time && !/^\d{2}:\d{2}$/.test(ev.time)) return '時間格式不對';
+  if (String(ev.note || '').length > 500) return '備註請在 500 個字以內';
+  return '';
+}
+
+// 整理成要存的樣子（去掉多餘的欄位與空白）
+function planNormalize(ev, id) {
+  const out = {
+    id,
+    group: ev.group,
+    title: String(ev.title).trim(),
+    date: ev.date,
+    audience: ev.audience,
+    status: ev.status,
+  };
+  if (ev.endDate && ev.endDate > ev.date) out.endDate = ev.endDate;
+  if (ev.time) out.time = ev.time;
+  const note = String(ev.note || '').trim();
+  if (note) out.note = note;
+  return out;
+}
+
+// A～I 欄；名稱和備註前面加 ' ，試算表才會照字存，不會變成公式、數字或日期
+function planEventToRow(ev) {
+  return [
+    ev.id,
+    PLAN_GROUPS[ev.group],
+    "'" + ev.title,
+    ev.date,
+    ev.endDate || '',
+    PLAN_AUDIENCE[ev.audience] || PLAN_GROUPS[ev.audience],
+    ev.status === 'confirmed' ? '確定' : '暫定',
+    ev.time || '',
+    ev.note ? "'" + ev.note : '',
+  ];
+}
+
+async function getPlanEvents(token, headers) {
+  const rows = await readPlanRows(token);
+  const events = rows.map(planRowToEvent).filter(Boolean);
+  return planJson({ events }, headers);
+}
+
+// body = { event }；event 有 id 就修改那一列，沒有就新增一列
+async function savePlanEvent(token, body, headers) {
+  const input = body && body.event;
+  const problem = planCheck(input);
+  if (problem) return planJson({ error: problem }, headers, 400);
+
+  const now = taipeiNowText();
+  const base = `https://sheets.googleapis.com/v4/spreadsheets/${PLANNER_SHEET_ID}/values`;
+  const auth = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+  if (input.id) {
+    const ev = planNormalize(input, String(input.id).trim());
+    const rows = await readPlanRows(token);
+    const i = rows.findIndex(r => String(r[0] || '').trim() === ev.id);
+    if (i < 0 || String(rows[i][11] || '').trim()) {
+      return planJson({ error: '找不到這個活動，可能已經被刪除了' }, headers, 404);
+    }
+    const rowNo = i + 2;
+    const res = await fetch(`${base}:batchUpdate`, {
+      method: 'POST',
+      headers: auth,
+      body: JSON.stringify({
+        valueInputOption: 'USER_ENTERED',
+        data: [
+          { range: `活動!A${rowNo}:I${rowNo}`, values: [planEventToRow(ev)] },
+          { range: `活動!K${rowNo}`, values: [[now]] },
+        ],
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error('存檔失敗：' + data.error.message);
+    return planJson({ event: ev }, headers);
+  }
+
+  const ev = planNormalize(input, 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
+  const res = await fetch(
+    `${base}/${encodeURIComponent('活動!A:L')}:append?valueInputOption=USER_ENTERED&insertDataOption=OVERWRITE`,
+    {
+      method: 'POST',
+      headers: auth,
+      body: JSON.stringify({ values: [planEventToRow(ev).concat([now, now, ''])] }),
+    }
+  );
+  const data = await res.json();
+  if (data.error) throw new Error('存檔失敗：' + data.error.message);
+  return planJson({ event: ev }, headers);
+}
+
+// body = { id }；在「刪除時間」填上現在的時間
+async function deletePlanEvent(token, body, headers) {
+  const id = body && typeof body.id === 'string' ? body.id.trim() : '';
+  if (!id) return planJson({ error: '缺少活動編號' }, headers, 400);
+  const rows = await readPlanRows(token);
+  const i = rows.findIndex(r => String(r[0] || '').trim() === id);
+  if (i < 0) return planJson({ error: '找不到這個活動' }, headers, 404);
+  if (String(rows[i][11] || '').trim()) return planJson({ ok: true }, headers);
+
+  const range = encodeURIComponent(`活動!L${i + 2}`);
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${PLANNER_SHEET_ID}/values/${range}?valueInputOption=USER_ENTERED`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values: [[taipeiNowText()]] }),
+    }
+  );
+  const data = await res.json();
+  if (data.error) throw new Error('刪除失敗：' + data.error.message);
+  return planJson({ ok: true }, headers);
 }
 
 // 向 Google Drive 申請一個 Resumable Upload 網址
