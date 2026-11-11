@@ -37,6 +37,7 @@
   --warn: #f4d58a;   --warn-fg: #7a5200;   --warn-bg: #fdf4dc;
   --busy: #e8806d;   --busy-fg: #8f2614;   --busy-bg: #fbe6e1;
   --danger: #b4342f;
+  --holiday: #c0281b;
 
   --g-youth: #0b7f82;  --g-youth-bg: #dff1f1;
   --g-core: #a85a17;   --g-core-bg: #f6e9dc;
@@ -145,11 +146,15 @@ h1 .badge { vertical-align: 0.15em; margin-right: 8px; }
 .sq.ok { background: var(--ok); color: var(--ok-fg); font-weight: 700; }
 .sq.warn { background: var(--warn); color: var(--warn-fg); font-weight: 700; }
 .sq.busy { background: var(--busy); color: var(--card); font-weight: 700; }
+.sq.hol:not(.busy) { color: var(--holiday); font-weight: 700; }
 .sq.mine { box-shadow: inset 0 0 0 3px var(--g); }
 .sq.past { opacity: 0.55; }
 .sq[aria-pressed="true"] { outline: 3px solid var(--fg); outline-offset: 2px; }
 .week-detail { margin: 12px 0 2px; padding: 12px 14px; border-radius: 14px; background: var(--quiet); font-size: 15px; scroll-margin-bottom: 90px; }
 .week-detail h3 { margin: 0 0 6px; font-size: 16px; }
+.hol-name { margin-left: 8px; color: var(--holiday); }
+.hol-line { margin: 8px 0 0; font-size: 14px; color: var(--muted); }
+.hol-line b, .hol-key { color: var(--holiday); font-weight: 700; margin-right: 6px; }
 
 .spring { color: var(--sea-spring); } .summer { color: var(--sea-summer); } .autumn { color: var(--sea-autumn); } .winter { color: var(--sea-winter); }
 
@@ -208,7 +213,9 @@ h1 .badge { vertical-align: 0.15em; margin-right: 8px; }
 
 /* 排活動頁：空著的週末、怎麼判斷 */
 .free { list-style: none; margin: 0; padding: 4px 18px 16px; display: grid; gap: 6px; font-size: 16px; }
-.free b { display: inline-block; min-width: 3.4em; }
+.free li { display: grid; grid-template-columns: 3.4em minmax(0, 1fr); }
+.free .long { color: var(--holiday); font-size: 14px; }
+.free .nb { white-space: nowrap; }
 .rules { font-size: 15px; color: var(--muted); padding: 4px 18px 18px; margin: 0; display: grid; gap: 6px; }
 .rules li { margin-left: 1.1em; }
 
@@ -419,6 +426,46 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
   let loadError = '';
   let saving = false;
   let picked = null;   // 全年週末點到的那一天
+
+  // 國定假日：行政院人事行政總處的「辦公日曆表」，用 GitHub 上整理成 JSON 的版本。讀不到就不顯示，其他功能照常
+  const HOLIDAY_URL = 'https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar@master/data/';
+  const holidays = new Map();   // 'YYYY-MM-DD' → { name, off }；off 是 false 的是補行上班
+  async function loadHolidays(y) {
+    try {
+      const res = await fetch(`${HOLIDAY_URL}${y}.json`);
+      if (!res.ok) return;
+      const list = await res.json();
+      for (const x of list) {
+        if (!x.description) continue;
+        const key = `${x.date.slice(0, 4)}-${x.date.slice(4, 6)}-${x.date.slice(6, 8)}`;
+        holidays.set(key, { name: x.description, off: x.isHoliday === true });
+      }
+    } catch (e) {
+      return;
+    }
+    if (loaded) render();
+  }
+  function isHoliday(key) {
+    const h = holidays.get(key);
+    return Boolean(h && h.off);
+  }
+  // 一段日子裡放假的日子，連著同名的合成一段，例如「2/6～2/8 春節」
+  function holidayText(keys) {
+    const parts = [];
+    let last = null;
+    for (const key of keys) {
+      const h = holidays.get(key);
+      if (!h) { last = null; continue; }
+      const name = h.off ? h.name : `${h.name}（要上班）`;
+      if (last && last.name === name && dayDiff(last.end, key) === 1) {
+        last.end = key;
+        continue;
+      }
+      last = { name, start: key, end: key };
+      parts.push(last);
+    }
+    return parts.map(p => `${md(parseDate(p.start))}${p.end === p.start ? '' : '～' + md(parseDate(p.end))} ${p.name}`).join('、');
+  }
   let showPast = false;   // 首頁要不要列出已經過去的活動
 
   // ── 判斷哪幾天太擠 ─────────────────────
@@ -684,6 +731,16 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
 
   // ── 排活動：給負責人的規劃首頁 ─────────
 
+  // 空著的週末（週六的日期）；週五到週一有國定假日就標「連假」
+  function freeText(sat) {
+    const d = parseDate(sat);
+    let long = false;
+    for (let i = -1; i <= 2; i++) {
+      if (isHoliday(ymd(addDays(d, i)))) long = true;
+    }
+    return `<span class="nb">${md(d)}${long ? '<span class="long">（連假）</span>' : ''}</span>`;
+  }
+
   // 卡片上的名稱太長時，只在「／」後面換行
   function cardTitle(g) {
     const t = titleOf(g);
@@ -703,7 +760,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
     const freeLines = [];
     for (let m = 1; m <= 12; m++) {
       const ks = free.filter(k => k.slice(5, 7) === pad(m));
-      if (ks.length) freeLines.push(`<li><b class="${seasonOf(m)}">${m} 月</b>${ks.map(k => md(parseDate(k))).join('、')}</li>`);
+      if (ks.length) freeLines.push(`<li><b class="${seasonOf(m)}">${m} 月</b><span>${ks.map(freeText).join('、')}</span></li>`);
     }
     const cards = Object.keys(GROUPS).map(g => {
       const mine = yearEvents.filter(e => e.group === g);
@@ -776,7 +833,8 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
       const info = a.days.get(key);
       const lv = info ? info.level : '';
       const mineHere = info && info.events.some(e => e.group === g);
-      return `<button type="button" class="sq ${lv}${mineHere ? ' mine' : ''}${key < todayStr ? ' past' : ''}" data-day="${key}" aria-pressed="${picked === key}" aria-label="${dayLong(key)}，${info ? info.events.length + ' 個活動' : '沒有活動'}">${d.getDate()}<small>${WEEK_SHORT[d.getDay()]}</small></button>`;
+      const hol = holidays.get(key);
+      return `<button type="button" class="sq ${lv}${mineHere ? ' mine' : ''}${isHoliday(key) ? ' hol' : ''}${key < todayStr ? ' past' : ''}" data-day="${key}" aria-pressed="${picked === key}" aria-label="${dayLong(key)}${hol ? '，' + esc(hol.name) : ''}，${info ? info.events.length + ' 個活動' : '沒有活動'}">${d.getDate()}<small>${WEEK_SHORT[d.getDay()]}</small></button>`;
     };
 
     const mine = events.filter(e => e.group === g && e.date.startsWith(String(year))).sort((x, y) => x.date.localeCompare(y.date));
@@ -802,8 +860,9 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
       const here = info ? info.events : [];
       const around = nearbyOf({ id: '', date: picked }, events).filter(e => !here.includes(e));
       const rel = a.issues.filter(is => is.days.includes(picked) && (g === 'church' || is.lv === 'busy' || is.groups.includes(g)));
+      const hol = holidays.get(picked);
       detail = `<div class="week-detail" id="day-detail">
-        <h3>${dayLong(picked)}</h3>
+        <h3>${dayLong(picked)}${hol ? `<span class="hol-name">${esc(hol.name)}${hol.off ? '' : '（要上班）'}</span>` : ''}</h3>
         ${here.length ? `<div class="chips">${here.map(e => chip(e)).join('')}</div>` : '<p style="margin:0">這天還空著。</p>'}
         ${around.length ? `<p style="margin:8px 0 4px">前後 ${NEAR_DAYS} 天：</p><div class="chips">${around.map(e => chip(e, true)).join('')}</div>` : ''}
         ${issueAlert(rel)}
@@ -812,13 +871,16 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
 
     const heat = [];
     for (let m = 0; m < 12; m++) {
-      // 這個月的週六、週日，加上有活動的平日，照日期排；連續的日子放成一組
+      // 這個月的週六、週日，加上有活動或放假的平日，照日期排；連續的日子放成一組
       const prefix = `${year}-${pad(m + 1)}-`;
       const keys = [];
+      const monthDays = [];
       for (let d = new Date(year, m, 1); d.getMonth() === m; d = addDays(d, 1)) {
         const key = ymd(d);
-        if (d.getDay() === 0 || d.getDay() === 6 || a.days.has(key)) keys.push(key);
+        monthDays.push(key);
+        if (d.getDay() === 0 || d.getDay() === 6 || a.days.has(key) || isHoliday(key)) keys.push(key);
       }
+      const hol = holidayText(monthDays);
       const runs = [];
       keys.forEach((key, i) => {
         if (i === 0 || dayDiff(keys[i - 1], key) !== 1) runs.push([]);
@@ -828,6 +890,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
       heat.push(`<div class="mblock">
         <h3 class="mon ${seasonOf(m + 1)}">${m + 1} 月</h3>
         <div class="strip">${runs.map(r => `<div class="run">${r.map(cell).join('')}</div>`).join('')}</div>
+        ${hol ? `<p class="hol-line"><b>放假</b>${esc(hol)}</p>` : ''}
         ${pickedHere ? detail : ''}
       </div>`);
     }
@@ -848,6 +911,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
           <span><i class="sw" style="background:var(--warn)"></i>太近</span>
           <span><i class="sw" style="background:var(--busy)"></i>撞期</span>
           <span><i class="sw" style="box-shadow:inset 0 0 0 3px var(--g)"></i>${g === 'church' ? '其他活動' : '我們有活動'}</span>
+          ${holidays.size ? '<span><b class="hol-key">紅字</b>國定假日</span>' : ''}
         </div>
         <div class="heat">${heat.join('')}</div>
       </section>
@@ -987,6 +1051,8 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
     const lv = levelOf(issues);
     const around = nearbyOf(draft, others);
     let html = `<h4>${dayLong(draft.date)}${lv === 'ok' ? '：沒有撞到' : lv === 'busy' ? '：撞期了' : '：太近了'}</h4>`;
+    const hol = holidayText(daysOf(draft));
+    if (hol) html += `<p>放假：${esc(hol)}</p>`;
     html += around.length ? `<p>前後 ${NEAR_DAYS} 天還有：</p><div class="chips">${around.map(e => chip(e, true)).join('')}</div>` : `<p>前後 ${NEAR_DAYS} 天都還沒有別的活動。</p>`;
     html += issues.map(is => `<p>${esc(is.text)}</p>`).join('');
     if (lv !== 'ok') {
@@ -1097,6 +1163,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
 
   render();
   loadEvents();
+  YEARS.forEach(loadHolidays);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && loaded && !saving) loadEvents(true);
   });
