@@ -45,11 +45,13 @@ const PLAN_GROUPS = {
   choir: '成人詩班',
   mission: '宣道股',
   edu: '教育股',
-  church: '教會與中區',
+  church: '其他活動',
 };
+// 改過名的團契：試算表裡還是舊名稱的列也認得
+const PLAN_GROUP_OLD_NAMES = { '教會與中區': 'church' };
 // 這些的「誰會參加」沒填時當「全教會」，其他當「自己」
 const PLAN_CHURCH_WIDE = ['church', 'mission', 'edu'];
-// 「誰會參加」欄：自己／家屬／全教會，或填團契名稱（中區聯契用，表示那個團契的人）
+// 「誰會參加」欄：自己／家屬／全教會，或填團契名稱（其他活動只有那個團契的人參加時用）
 const PLAN_AUDIENCE = { self: '自己', family: '家屬', all: '全教會' };
 const PLAN_DISTRICT_GROUPS = ['youth', 'core', 'caleb'];
 
@@ -696,7 +698,9 @@ function isPlanDate(s) {
 }
 
 function planGroupCode(name) {
-  return Object.keys(PLAN_GROUPS).find(code => PLAN_GROUPS[code] === name) || null;
+  const code = Object.keys(PLAN_GROUPS).find(c => PLAN_GROUPS[c] === name);
+  if (code) return code;
+  return PLAN_GROUP_OLD_NAMES[name] || null;
 }
 
 // 讀「活動」分頁第 2 列以後；陣列第 0 筆是試算表第 2 列
