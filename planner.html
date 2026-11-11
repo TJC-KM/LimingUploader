@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
-/* 教會活動與年度活動規劃：資料由 Worker（/plan）讀寫 Google 試算表「黎明教會行事曆」。版面：手機一欄。首頁是給所有人看的活動清單；負責人從 #plan 選自己負責的 → 各團契自己的維護頁（全年週末，六、日各一格＋自己的活動）→ 全年總表；編輯在底部面板，填日期時馬上顯示前後幾天的狀況 */
+/* 教會活動與年度活動規劃：資料由 Worker（/plan）讀寫 Google 試算表「黎明教會行事曆」。版面：手機一欄。首頁是給所有人看的活動清單；負責人從 #plan 選自己負責的 → 各團契自己的維護頁（全年週末，每月一段、日期由左到右＋自己的活動）→ 全年總表；編輯在底部面板，填日期時馬上顯示前後幾天的狀況 */
 :root {
   color-scheme: only light;
   --f-display: "LXGW WenKai TC", "Kaiti TC", "BiauKai", "DFKai-SB", "STKaiti", serif;
@@ -124,31 +124,30 @@ h1 .badge { vertical-align: 0.15em; margin-right: 8px; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; color: var(--muted); padding: 0 18px 4px; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .sw { width: 16px; height: 16px; border-radius: 5px; display: inline-block; }
-.heat { display: grid; gap: 14px 28px; padding: 10px 18px 6px; }
-@media (min-width: 680px) { .heat { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.mrow { display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: center; gap: 8px; }
-.mrow .mon { font-size: 15px; font-weight: 700; text-align: right; }
-.days { display: grid; grid-template-columns: 28px repeat(5, minmax(0, 42px)); gap: 5px; align-items: center; }
-.days .dl { font-size: 13px; color: var(--muted); text-align: center; white-space: nowrap; }
-.days .wd { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 5px; }
-.days .wd .sq { width: 42px; }
+/* 每個月一段，日期由左到右照順序排；連在一起的日子靠在一起成一組。格子寬度讓手機一行剛好放得下 4 個週末 */
+.heat { --cell: clamp(32px, calc((100vw - 104px) / 8), 44px); padding: 4px 18px 12px; }
+.mblock { padding: 10px 0 12px; }
+.mblock + .mblock { border-top: 1px solid var(--line); }
+.mon { margin: 0 0 6px; font-size: 16px; font-weight: 700; }
+.strip { display: flex; flex-wrap: wrap; gap: 8px; }
+.run { display: flex; flex-wrap: wrap; gap: 2px; }
 .sq {
-  width: 100%; aspect-ratio: 1;
+  width: var(--cell); height: 50px;
   border-radius: 11px;
   border: 0; padding: 0;
-  display: grid; place-items: center;
-  font-size: 15px; font-variant-numeric: tabular-nums;
+  display: grid; place-content: center; justify-items: center;
+  font-size: 16px; line-height: 1.15; font-variant-numeric: tabular-nums;
   background: var(--quiet); color: var(--muted);
   position: relative;
 }
-.sq.blank { visibility: hidden; }
+.sq small { font-size: 12px; font-weight: 400; }
 .sq.ok { background: var(--ok); color: var(--ok-fg); font-weight: 700; }
 .sq.warn { background: var(--warn); color: var(--warn-fg); font-weight: 700; }
 .sq.busy { background: var(--busy); color: var(--card); font-weight: 700; }
 .sq.mine { box-shadow: inset 0 0 0 3px var(--g); }
 .sq.past { opacity: 0.55; }
 .sq[aria-pressed="true"] { outline: 3px solid var(--fg); outline-offset: 2px; }
-.week-detail { margin: 8px 18px 18px; padding: 12px 14px; border-radius: 14px; background: var(--quiet); font-size: 15px; }
+.week-detail { margin: 12px 0 2px; padding: 12px 14px; border-radius: 14px; background: var(--quiet); font-size: 15px; scroll-margin-bottom: 90px; }
 .week-detail h3 { margin: 0 0 6px; font-size: 16px; }
 
 .spring { color: var(--sea-spring); } .summer { color: var(--sea-summer); } .autumn { color: var(--sea-autumn); } .winter { color: var(--sea-winter); }
@@ -736,36 +735,13 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
   function renderGroup(g) {
     const G = GROUPS[g];
     const a = analyze(events, year);
-    const cell = d => {
-      if (!d) return '<span class="sq blank"></span>';
-      const key = ymd(d);
+    const cell = key => {
+      const d = parseDate(key);
       const info = a.days.get(key);
       const lv = info ? info.level : '';
       const mineHere = info && info.events.some(e => e.group === g);
-      return `<button type="button" class="sq ${lv}${mineHere ? ' mine' : ''}${key < todayStr ? ' past' : ''}" data-day="${key}" aria-pressed="${picked === key}" aria-label="${dayLong(key)}，${info ? info.events.length + ' 個活動' : '沒有活動'}">${d.getDate()}</button>`;
+      return `<button type="button" class="sq ${lv}${mineHere ? ' mine' : ''}${key < todayStr ? ' past' : ''}" data-day="${key}" aria-pressed="${picked === key}" aria-label="${dayLong(key)}，${info ? info.events.length + ' 個活動' : '沒有活動'}">${d.getDate()}<small>${WEEK_SHORT[d.getDay()]}</small></button>`;
     };
-    const heat = [];
-    for (let m = 0; m < 12; m++) {
-      // 每一欄是一個週末：上面週六、下面週日
-      const cols = [];
-      const first = new Date(year, m, 1);
-      if (first.getDay() === 0) cols.push([null, first]);
-      for (let d = new Date(first); d.getMonth() === m; d = addDays(d, 1)) {
-        if (d.getDay() !== 6) continue;
-        const sun = addDays(d, 1);
-        cols.push([d, sun.getMonth() === m ? sun : null]);
-      }
-      while (cols.length < 5) cols.push([null, null]);
-      const weekdays = [...a.days.values()].filter(x => x.key.slice(5, 7) === pad(m + 1) && ![0, 6].includes(parseDate(x.key).getDay()));
-      heat.push(`<div class="mrow">
-        <span class="mon ${seasonOf(m + 1)}">${m + 1}月</span>
-        <div class="days">
-          <span class="dl">六</span>${cols.map(c => cell(c[0])).join('')}
-          <span class="dl">日</span>${cols.map(c => cell(c[1])).join('')}
-          ${weekdays.length ? `<span class="dl">平日</span><div class="wd">${weekdays.map(x => cell(parseDate(x.key))).join('')}</div>` : ''}
-        </div>
-      </div>`);
-    }
 
     const mine = events.filter(e => e.group === g && e.date.startsWith(String(year))).sort((x, y) => x.date.localeCompare(y.date));
     const items = mine.map(ev => {
@@ -790,12 +766,34 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
       const here = info ? info.events : [];
       const around = nearbyOf({ id: '', date: picked }, events).filter(e => !here.includes(e));
       const rel = a.issues.filter(is => is.days.includes(picked) && (g === 'church' || is.lv === 'busy' || is.groups.includes(g)));
-      detail = `<div class="week-detail">
+      detail = `<div class="week-detail" id="day-detail">
         <h3>${dayLong(picked)}</h3>
         ${here.length ? `<div class="chips">${here.map(e => chip(e)).join('')}</div>` : '<p style="margin:0">這天還空著。</p>'}
         ${around.length ? `<p style="margin:8px 0 4px">前後 ${NEAR_DAYS} 天：</p><div class="chips">${around.map(e => chip(e, true)).join('')}</div>` : ''}
         ${issueAlert(rel)}
       </div>`;
+    }
+
+    const heat = [];
+    for (let m = 0; m < 12; m++) {
+      // 這個月的週六、週日，加上有活動的平日，照日期排；連續的日子放成一組
+      const prefix = `${year}-${pad(m + 1)}-`;
+      const keys = [];
+      for (let d = new Date(year, m, 1); d.getMonth() === m; d = addDays(d, 1)) {
+        const key = ymd(d);
+        if (d.getDay() === 0 || d.getDay() === 6 || a.days.has(key)) keys.push(key);
+      }
+      const runs = [];
+      keys.forEach((key, i) => {
+        if (i === 0 || dayDiff(keys[i - 1], key) !== 1) runs.push([]);
+        runs[runs.length - 1].push(key);
+      });
+      const pickedHere = picked && picked.startsWith(prefix);
+      heat.push(`<div class="mblock">
+        <h3 class="mon ${seasonOf(m + 1)}">${m + 1} 月</h3>
+        <div class="strip">${runs.map(r => `<div class="run">${r.map(cell).join('')}</div>`).join('')}</div>
+        ${pickedHere ? detail : ''}
+      </div>`);
     }
 
     $('app').innerHTML = `
@@ -804,7 +802,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
         <div class="kicker">${year} 年的活動</div>
         <h1><span class="badge">${G.mark}</span>${G.name}</h1>
         <p class="lead">${g === 'church'
-          ? '全教會的活動和中區聯契的日期請填在這裡。中區聯契選「誰會參加」時，選對應的團契，系統才知道是同一群人。'
+          ? '其他、中區、聯契與總會的活動日期請填在這裡。中區聯契選「誰會參加」時，選對應的團契，系統才知道是同一群人。'
           : `先填想辦的活動，日期還沒定就選「暫定」。別的團契排的活動也看得到，方便避開。`}</p>
         ${yearTabs()}
       </header>
@@ -818,16 +816,24 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
           <span><i class="sw" style="box-shadow:inset 0 0 0 3px var(--g)"></i>${g === 'church' ? '教會排的' : '我們有活動'}</span>
         </div>
         <div class="heat">${heat.join('')}</div>
-        ${detail}
       </section>
       <section class="panel g-${g}">
         <h2 class="panel-h">${g === 'church' ? '教會與中區的活動' : '我們的活動'}<small>${mine.length} 個</small></h2>
         ${mine.length ? `<ul class="list">${items}</ul>` : `<p class="empty">${year} 年還沒有活動，按右下角「新增活動」開始填。</p>`}
       </section>`;
 
+    // 明細出現在那個月下面；點的那一格留在畫面上原本的位置
     document.querySelectorAll('[data-day]').forEach(b => b.addEventListener('click', () => {
-      picked = picked === b.dataset.day ? null : b.dataset.day;
+      const key = b.dataset.day;
+      const before = b.getBoundingClientRect().top;
+      picked = picked === key ? null : key;
       render();
+      const again = document.querySelector(`.sq[data-day="${key}"]`);
+      if (!again) return;
+      window.scrollBy(0, again.getBoundingClientRect().top - before);
+      again.focus({ preventScroll: true });
+      const box = $('day-detail');
+      if (box) box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }));
   }
 
