@@ -181,6 +181,7 @@ h1 .badge { vertical-align: 0.15em; margin-right: 8px; }
 .alert p + p { margin-top: 4px; }
 .ev.pub { grid-template-columns: 64px minmax(0, 1fr); }
 .ev.pub.past { opacity: 0.6; }
+.ev-date.hol b, .hol-tag { color: var(--holiday); }
 .host { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px 2px 3px; border-radius: 99px; background: var(--gbg); color: var(--fg); font-size: 14px; }
 .host i { font-style: normal; width: 20px; height: 20px; border-radius: 6px; display: inline-grid; place-items: center; background: var(--g); color: var(--card); font-family: var(--f-display); font-size: 12px; font-weight: 700; }
 .soon { display: inline-block; vertical-align: 0.15em; margin-left: 4px; padding: 1px 8px; border-radius: 99px; background: var(--accent); color: var(--on-accent); font-family: var(--f-body); font-size: 13px; font-weight: 700; }
@@ -669,16 +670,26 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
     if (n > 1 && n < 14) return `${n} 天後`;
     return '';
   }
+  // 活動碰到的國定假日：一天的活動只寫名稱，好幾天的連日期一起寫
+  function publicHoliday(ev) {
+    if (!ev.endDate || ev.endDate === ev.date) {
+      const h = holidays.get(ev.date);
+      if (!h) return '';
+      return h.off ? h.name : `${h.name}（要上班）`;
+    }
+    return holidayText(daysOf(ev));
+  }
   function publicItem(ev, past) {
     const dt = dateText(ev);
     const soon = past ? '' : soonText(ev);
     const G = GROUPS[ev.group];
     const who = publicAudience(ev);
+    const hol = publicHoliday(ev);
     return `<li class="ev pub${past ? ' past' : ''}">
-      <div class="ev-date"><b>${dt.big}</b><span>${dt.small}</span></div>
+      <div class="ev-date${isHoliday(ev.date) ? ' hol' : ''}"><b>${dt.big}</b><span>${dt.small}</span></div>
       <div class="ev-body">
         <h3>${esc(ev.title)}${soon ? ` <span class="soon">${soon}</span>` : ''}</h3>
-        <p class="meta"><span class="host g-${ev.group}"><i>${G.mark}</i>${titleOf(ev.group)}</span>${who ? `<span>${who}</span>` : ''}${ev.time ? `<span>${esc(ev.time)} 開始</span>` : ''}${ev.status === 'tentative' ? '<span class="status tentative">日期暫定</span>' : ''}</p>
+        <p class="meta"><span class="host g-${ev.group}"><i>${G.mark}</i>${titleOf(ev.group)}</span>${who ? `<span>${who}</span>` : ''}${ev.time ? `<span>${esc(ev.time)} 開始</span>` : ''}${ev.status === 'tentative' ? '<span class="status tentative">日期暫定</span>' : ''}${hol ? `<span class="hol-tag">${esc(hol)}</span>` : ''}</p>
         ${ev.note ? `<p class="note">${esc(ev.note)}</p>` : ''}
       </div>
     </li>`;
@@ -808,6 +819,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
           <li>成人詩班、宣道股、教育股的人分散在各團契，他們的活動算每個團契都有人參加。</li>
           <li>帶家屬的活動：家屬可能在別的團契，算每個團契都有人。</li>
           <li>全教會都可以參加的活動，算每個人都有份。</li>
+          <li>國定假日只是標出來（紅字），照樣可以排活動，不算撞期、太近。</li>
         </ul>
       </section>
       <div class="foot">
