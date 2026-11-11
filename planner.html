@@ -5,17 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="color-scheme" content="only light">
 <link rel="icon" type="image/png" href="logo_10th.png">
-<title>年度活動規劃 — 黎明教會</title>
+<title>教會活動 — 黎明教會</title>
 <meta property="og:site_name" content="黎明寶庫">
-<meta property="og:title" content="黎明教會年度活動規劃">
-<meta property="og:description" content="各團契先把想辦的活動填上去，看哪幾天撞期、太近，趁日期還沒定就調開。">
+<meta property="og:title" content="黎明教會活動">
+<meta property="og:description" content="教會和各團契接下來的活動；契長、各股負責人也在這裡排活動。">
 <meta property="og:image" content="https://tjc-km.github.io/LimingUploader/logo_10th.png">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
-/* 年度活動規劃：資料由 Worker（/plan）讀寫 Google 試算表「黎明教會行事曆」。版面：手機一欄。首頁選身分 → 各團契自己的維護頁（全年週末，六、日各一格＋自己的活動）→ 全年總表；編輯在底部面板，填日期時馬上顯示前後幾天的狀況 */
+/* 教會活動與年度活動規劃：資料由 Worker（/plan）讀寫 Google 試算表「黎明教會行事曆」。版面：手機一欄。首頁是給所有人看的活動清單；負責人從 #plan 選自己負責的 → 各團契自己的維護頁（全年週末，六、日各一格＋自己的活動）→ 全年總表；編輯在底部面板，填日期時馬上顯示前後幾天的狀況 */
 :root {
   color-scheme: only light;
   --f-display: "LXGW WenKai TC", "Kaiti TC", "BiauKai", "DFKai-SB", "STKaiti", serif;
@@ -174,6 +174,12 @@ h1 .badge { vertical-align: 0.15em; margin-right: 8px; }
 .alert b { font-weight: 700; }
 .alert p { margin: 0; }
 .alert p + p { margin-top: 4px; }
+.ev.pub { grid-template-columns: 64px minmax(0, 1fr); }
+.ev.pub.past { opacity: 0.6; }
+.host { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px 2px 3px; border-radius: 99px; background: var(--gbg); color: var(--fg); font-size: 14px; }
+.host i { font-style: normal; width: 20px; height: 20px; border-radius: 6px; display: inline-grid; place-items: center; background: var(--g); color: var(--card); font-family: var(--f-display); font-size: 12px; font-weight: 700; }
+.soon { display: inline-block; vertical-align: 0.15em; margin-left: 4px; padding: 1px 8px; border-radius: 99px; background: var(--accent); color: var(--on-accent); font-family: var(--f-body); font-size: 13px; font-weight: 700; }
+.more-btn { display: block; width: calc(100% - 36px); margin: 12px 18px 18px; min-height: 48px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); color: var(--accent); font-size: 16px; font-weight: 500; }
 .edit-btn { min-height: 42px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--accent); font-size: 15px; font-weight: 500; }
 .empty { margin: 0; padding: 6px 18px 18px; color: var(--muted); }
 .readonly-note { margin: 0; padding: 0 18px 16px; font-size: 14px; color: var(--muted); }
@@ -412,6 +418,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
   let saving = false;
   let picked = null;   // 全年週末點到的那一天
   let onlyIssues = false;
+  let showPast = false;   // 首頁要不要列出已經過去的活動
 
   // ── 判斷哪幾天太擠 ─────────────────────
   // 以「天」來看，週六、週日分開算
@@ -595,9 +602,88 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
     return `<div class="alert ${levelOf(issues)}">${issueLines(issues)}</div>`;
   }
 
-  // ── 首頁：選身分 ───────────────────────
+  // ── 首頁：給所有人看的活動清單 ─────────
+
+  // 給一般信徒看的「誰可以參加」
+  function publicAudience(ev) {
+    const G = GROUPS[ev.group];
+    if (ev.audience === 'all') return '全教會';
+    if (ev.audience === 'family') return `${G.name}和家屬`;
+    if (ev.audience === 'self') return STAFF.includes(ev.group) ? `${G.name}同工` : G.name;
+    return GROUPS[ev.audience].name;
+  }
+  // 兩週內的活動標「今天」「明天」「3 天後」
+  function soonText(ev) {
+    const end = ev.endDate || ev.date;
+    if (ev.date <= todayStr && end >= todayStr) return '今天';
+    const n = dayDiff(todayStr, ev.date);
+    if (n === 1) return '明天';
+    if (n > 1 && n < 14) return `${n} 天後`;
+    return '';
+  }
+  function publicItem(ev, past) {
+    const dt = dateText(ev);
+    const soon = past ? '' : soonText(ev);
+    const G = GROUPS[ev.group];
+    return `<li class="ev pub${past ? ' past' : ''}">
+      <div class="ev-date"><b>${dt.big}</b><span>${dt.small}</span></div>
+      <div class="ev-body">
+        <h3>${esc(ev.title)}${soon ? ` <span class="soon">${soon}</span>` : ''}</h3>
+        <p class="meta"><span class="host g-${ev.group}"><i>${G.mark}</i>${G.name}</span>${ev.time ? `<span>${esc(ev.time)} 開始</span>` : ''}${ev.status === 'tentative' ? '<span class="status tentative">日期暫定</span>' : ''}</p>
+        <p class="meta">誰可以參加：${publicAudience(ev)}</p>
+        ${ev.note ? `<p class="note">${esc(ev.note)}</p>` : ''}
+      </div>
+    </li>`;
+  }
+  // 依月份分段；不是今年的月份前面加年份
+  function byMonth(list, past) {
+    const months = new Map();
+    for (const ev of list) {
+      const key = ev.date.slice(0, 7);
+      if (!months.has(key)) months.set(key, []);
+      months.get(key).push(ev);
+    }
+    const thisYear = todayStr.slice(0, 4);
+    return [...months.entries()].map(([key, evs]) => {
+      const y = key.slice(0, 4);
+      const m = Number(key.slice(5, 7));
+      return `<div class="month">
+        <h3 class="month-h ${seasonOf(m)}">${y === thisYear ? '' : y + ' 年 '}${m} 月</h3>
+        <ul class="list">${evs.map(ev => publicItem(ev, past)).join('')}</ul>
+      </div>`;
+    }).join('');
+  }
 
   function renderHome() {
+    const sorted = events.slice().sort((x, y) => x.date.localeCompare(y.date));
+    const upcoming = sorted.filter(ev => (ev.endDate || ev.date) >= todayStr);
+    const past = sorted.filter(ev => (ev.endDate || ev.date) < todayStr).reverse();
+    $('app').innerHTML = `
+      <header class="top">
+        <div class="kicker">真耶穌教會黎明教會</div>
+        <h1>教會活動</h1>
+        <p class="lead">教會和各團契接下來的活動。寫「日期暫定」的，日期還可能會改。</p>
+      </header>
+      <section class="panel">
+        <h2 class="panel-h">接下來的活動<small>${upcoming.length} 個</small></h2>
+        ${upcoming.length ? byMonth(upcoming, false) : '<p class="empty">目前還沒有排定的活動。</p>'}
+      </section>
+      ${past.length ? `<section class="panel">
+        ${showPast ? `<h2 class="panel-h">已經過去的活動</h2>${byMonth(past, true)}` : ''}
+        <button type="button" class="more-btn" id="toggle-past">${showPast ? '收起已經過去的活動' : '看已經過去的活動'}</button>
+      </section>` : ''}
+      <section class="panel">
+        <h2 class="panel-h">契長、各股負責人</h2>
+        <p class="readonly-note">要新增、修改活動，或看哪幾天撞期、太近，請從這裡進去。</p>
+        <a class="big-link" href="#plan">排活動</a>
+      </section>`;
+    const toggle = $('toggle-past');
+    if (toggle) toggle.addEventListener('click', () => { showPast = !showPast; render(); });
+  }
+
+  // ── 排活動：給負責人的規劃首頁 ─────────
+
+  function renderPlan() {
     const a = analyze(events, year);
     const yearEvents = events.filter(e => e.date.startsWith(String(year)));
     const busy = [...a.days.values()].filter(d => d.level === 'busy').length;
@@ -616,9 +702,10 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
     }).join('');
     $('app').innerHTML = `
       <header class="top">
-        <div class="kicker">真耶穌教會黎明教會</div>
+        <a class="back" href="#home">‹ 回教會活動</a>
+        <div class="kicker">契長、各股負責人</div>
         <h1>年度活動規劃</h1>
-        <p class="lead">各團契先把想辦的活動填上去，系統會標出同一群人撞期或太近的日子，趁日期還是暫定的時候就能調開。</p>
+        <p class="lead">先把想辦的活動填上去，系統會標出同一群人撞期或太近的日子，趁日期還是暫定的時候就能調開。</p>
         ${yearTabs()}
       </header>
       <section class="panel">
@@ -631,7 +718,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
         <a class="big-link" href="#overview">看全年總表</a>
       </section>
       <section class="panel">
-        <h2 class="panel-h">我是…<small>點自己負責的，就能新增、修改</small></h2>
+        <h2 class="panel-h">我負責…<small>點進去就能新增、修改</small></h2>
         <div class="who">${cards}</div>
       </section>
       <div class="foot">
@@ -708,7 +795,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
 
     $('app').innerHTML = `
       <header class="top g-${g}">
-        <a class="back" href="#home">‹ 回首頁</a>
+        <a class="back" href="#plan">‹ 回排活動</a>
         <div class="kicker">${year} 年的活動</div>
         <h1><span class="badge">${G.mark}</span>${G.name}</h1>
         <p class="lead">${g === 'church'
@@ -770,7 +857,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
     }
     $('app').innerHTML = `
       <header class="top">
-        <a class="back" href="#home">‹ 回首頁</a>
+        <a class="back" href="#plan">‹ 回排活動</a>
         <div class="kicker">黎明教會</div>
         <h1>${year} 全年總表</h1>
         <p class="lead">${busy} 天撞期、${warn} 處太近。虛線框的是暫定，還可以調。</p>
@@ -801,6 +888,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
   function route() {
     const h = location.hash.replace('#', '');
     if (h === 'overview') return { view: 'overview' };
+    if (h === 'plan') return { view: 'plan' };
     const m = h.match(/^g-(\w+)$/);
     if (m && GROUPS[m[1]]) return { view: 'group', group: m[1] };
     return { view: 'home' };
@@ -811,7 +899,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
       $('app').innerHTML = `
         <header class="top">
           <div class="kicker">真耶穌教會黎明教會</div>
-          <h1>年度活動規劃</h1>
+          <h1>教會活動</h1>
         </header>
         <section class="panel">${loadError
           ? `<p class="loading">${esc(loadError)}</p><button class="big-link" type="button" id="retry" style="border:0;width:calc(100% - 36px)">重新讀取</button>`
@@ -822,6 +910,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
     }
     if (r.view === 'overview') renderOverview();
     else if (r.view === 'group') renderGroup(r.group);
+    else if (r.view === 'plan') renderPlan();
     else renderHome();
     const fab = $('fab');
     fab.hidden = r.view !== 'group';
