@@ -43,8 +43,12 @@ const PLAN_GROUPS = {
   caleb: '迦勒團契',
   family: '全家信主團契',
   choir: '成人詩班',
+  mission: '宣道股',
+  edu: '教育股',
   church: '教會與中區',
 };
+// 這些的「誰會參加」沒填時當「全教會」，其他當「自己」
+const PLAN_CHURCH_WIDE = ['church', 'mission', 'edu'];
 // 「誰會參加」欄：自己／家屬／全教會，或填團契名稱（中區聯契用，表示那個團契的人）
 const PLAN_AUDIENCE = { self: '自己', family: '家屬', all: '全教會' };
 const PLAN_DISTRICT_GROUPS = ['youth', 'core', 'caleb'];
@@ -720,7 +724,7 @@ function planRowToEvent(row) {
     const code = planGroupCode(cell(5));
     if (PLAN_DISTRICT_GROUPS.includes(code)) audience = code;
   }
-  if (!audience) audience = group === 'church' ? 'all' : 'self';
+  if (!audience) audience = PLAN_CHURCH_WIDE.includes(group) ? 'all' : 'self';
 
   const ev = {
     id,
