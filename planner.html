@@ -654,6 +654,11 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
     }).join('');
   }
 
+  // 首頁沒有活動時，說明是還沒有人填，不是壞掉
+  function emptyHome(hasPast) {
+    return `<p class="empty">${hasPast ? '目前沒有接下來的活動。' : '各團契的活動還在排，還沒有人填。'}<br>契長、各股負責人排好活動，就會出現在這裡。</p>`;
+  }
+
   function renderHome() {
     const sorted = events.slice().sort((x, y) => x.date.localeCompare(y.date));
     const upcoming = sorted.filter(ev => (ev.endDate || ev.date) >= todayStr);
@@ -665,8 +670,8 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
         <p class="lead">教會和各團契接下來的活動。寫「日期暫定」的，日期還可能會改。</p>
       </header>
       <section class="panel">
-        <h2 class="panel-h">接下來的活動<small>${upcoming.length} 個</small></h2>
-        ${upcoming.length ? byMonth(upcoming, false) : '<p class="empty">目前還沒有排定的活動。</p>'}
+        <h2 class="panel-h">接下來的活動${upcoming.length ? `<small>${upcoming.length} 個</small>` : ''}</h2>
+        ${upcoming.length ? byMonth(upcoming, false) : emptyHome(events.length > 0)}
       </section>
       ${past.length ? `<section class="panel">
         ${showPast ? `<h2 class="panel-h">已經過去的活動</h2>${byMonth(past, true)}` : ''}
