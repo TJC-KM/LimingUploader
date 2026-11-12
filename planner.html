@@ -220,25 +220,21 @@ h1 .badge { vertical-align: 0.15em; margin-right: 8px; }
 .rules { font-size: 15px; color: var(--muted); padding: 4px 18px 18px; margin: 0; display: grid; gap: 6px; }
 .rules li { margin-left: 1.1em; }
 
-/* 新增按鈕（右下角）、首頁的「排活動」按鈕（右上角）、編輯面板 */
+/* 新增按鈕、首頁的「排活動」按鈕（都浮在右上角）、編輯面板 */
 .fab {
   position: fixed;
+  top: calc(14px + env(safe-area-inset-top, 0px));
   right: calc(16px + env(safe-area-inset-right, 0px));
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   z-index: 20;
   display: inline-flex; align-items: center; gap: 8px;
-  min-height: 56px; padding: 0 22px;
+  min-height: 48px; padding: 0 18px;
   border: 0; border-radius: 99px;
   background: var(--g, var(--accent)); color: var(--card);
   font-size: 17px; font-weight: 700;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 .fab svg { width: 20px; height: 20px; }
-.fab.plan-fab {
-  top: calc(14px + env(safe-area-inset-top, 0px)); bottom: auto;
-  min-height: 48px; padding: 0 18px;
-  background: var(--card); color: var(--accent); border: 2px solid var(--accent); text-decoration: none;
-}
+.fab.plan-fab { background: var(--card); color: var(--accent); border: 2px solid var(--accent); text-decoration: none; }
 .sheet-wrap { position: fixed; inset: 0; z-index: 30; background: var(--overlay); display: grid; align-items: end; justify-items: center; }
 @media (min-width: 700px) { .sheet-wrap { align-items: center; } }
 .sheet {
@@ -933,7 +929,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
       </section>
       <section class="panel g-${g}">
         <h2 class="panel-h">${g === 'church' ? '其他活動' : '我們的活動'}<small>${mine.length} 個</small></h2>
-        ${mine.length ? `<ul class="list">${items}</ul>` : `<p class="empty">${year} 年還沒有活動，按右下角「新增活動」開始填。</p>`}
+        ${mine.length ? `<ul class="list">${items}</ul>` : `<p class="empty">${year} 年還沒有活動，按右上角「新增活動」開始填。</p>`}
       </section>`;
 
     // 明細出現在那個月下面；點的那一格留在畫面上原本的位置
