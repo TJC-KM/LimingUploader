@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <style>
-/* 教會活動與年度活動規劃：資料由 Worker（/plan）讀寫 Google 試算表「黎明教會行事曆」。版面：手機一欄。首頁是給所有人看的活動清單；負責人從右下角「排活動」（#plan，有空著的週末）選自己負責的 → 各團契自己的維護頁（全年週末，每月一段、日期由左到右＋自己的活動）；編輯在底部面板，填日期時馬上顯示前後幾天的狀況 */
+/* 教會活動與年度活動規劃：資料由 Worker（/plan）讀寫 Google 試算表「黎明教會行事曆」。版面：手機一欄。首頁是給所有人看的活動清單；負責人從右上角「排活動」（#plan，有空著的週末）選自己負責的 → 各團契自己的維護頁（全年週末，每月一段、日期由左到右＋自己的活動）；編輯在底部面板，填日期時馬上顯示前後幾天的狀況 */
 :root {
   color-scheme: only light;
   --f-display: "LXGW WenKai TC", "Kaiti TC", "BiauKai", "DFKai-SB", "STKaiti", serif;
@@ -220,7 +220,7 @@ h1 .badge { vertical-align: 0.15em; margin-right: 8px; }
 .rules { font-size: 15px; color: var(--muted); padding: 4px 18px 18px; margin: 0; display: grid; gap: 6px; }
 .rules li { margin-left: 1.1em; }
 
-/* 新增按鈕、首頁的「排活動」按鈕、編輯面板 */
+/* 新增按鈕（右下角）、首頁的「排活動」按鈕（右上角）、編輯面板 */
 .fab {
   position: fixed;
   right: calc(16px + env(safe-area-inset-right, 0px));
@@ -234,7 +234,11 @@ h1 .badge { vertical-align: 0.15em; margin-right: 8px; }
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 .fab svg { width: 20px; height: 20px; }
-.fab.plan-fab { background: var(--card); color: var(--accent); border: 2px solid var(--accent); text-decoration: none; }
+.fab.plan-fab {
+  top: calc(14px + env(safe-area-inset-top, 0px)); bottom: auto;
+  min-height: 48px; padding: 0 18px;
+  background: var(--card); color: var(--accent); border: 2px solid var(--accent); text-decoration: none;
+}
 .sheet-wrap { position: fixed; inset: 0; z-index: 30; background: var(--overlay); display: grid; align-items: end; justify-items: center; }
 @media (min-width: 700px) { .sheet-wrap { align-items: center; } }
 .sheet {
