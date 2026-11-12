@@ -51,9 +51,11 @@ const PLAN_GROUPS = {
 const PLAN_GROUP_OLD_NAMES = { '教會與中區': 'church' };
 // 這些的「誰會參加」沒填時當「全教會」，其他當「自己」
 const PLAN_CHURCH_WIDE = ['church', 'mission', 'edu'];
-// 「誰會參加」欄：自己／家屬／全教會，或填團契名稱（其他活動只有那個團契的人參加時用）
-const PLAN_AUDIENCE = { self: '自己', family: '家屬', all: '全教會' };
+// 「誰會參加」欄：自己／家屬／全教會／幾位同靈支援，或填團契名稱（其他活動只有那個團契的人參加時用）
+const PLAN_AUDIENCE = { self: '自己', family: '家屬', all: '全教會', few: '幾位同靈支援' };
 const PLAN_DISTRICT_GROUPS = ['youth', 'core', 'caleb'];
+// 「幾位同靈支援」只有這些可以選
+const PLAN_FEW_GROUPS = ['church'];
 
 // ========================================
 // CORS 設定：讓瀏覽器允許跨網域請求
@@ -754,6 +756,7 @@ function planCheck(ev) {
   if (!isPlanDate(ev.date)) return '日期格式不對';
   if (ev.endDate && (!isPlanDate(ev.endDate) || ev.endDate < ev.date)) return '「到哪一天」不能比開始日期早';
   if (!PLAN_AUDIENCE[ev.audience] && !PLAN_DISTRICT_GROUPS.includes(ev.audience)) return '「誰會參加」不對';
+  if (ev.audience === 'few' && !PLAN_FEW_GROUPS.includes(ev.group)) return '「誰會參加」不對';
   if (ev.status !== 'tentative' && ev.status !== 'confirmed') return '「日期定了嗎」不對';
   if (ev.time && !/^\d{2}:\d{2}$/.test(ev.time)) return '時間格式不對';
   if (String(ev.note || '').length > 500) return '備註請在 500 個字以內';

@@ -494,9 +494,14 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
   const STAFF = ['mission', 'edu'];
   const EVERYWHERE = ['choir'].concat(STAFF);
   function peopleOf(ev) {
+    if (!counts(ev)) return [];
     if (ev.audience === 'all' || ev.audience === 'family') return PEOPLE.slice();
     if (ev.audience === 'self') return EVERYWHERE.includes(ev.group) ? PEOPLE.slice() : [ev.group];
     return [ev.audience];
+  }
+  // 「只要幾位同靈支援」的活動只標出來，不算撞期、太近，那個週末也還算空著
+  function counts(ev) {
+    return ev.audience !== 'few';
   }
   function groupNames(gs) {
     return gs.length === PEOPLE.length ? '各團契' : gs.map(g => GROUPS[g].short).join('、');
@@ -510,7 +515,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
     const allDays = new Set();
     for (const ev of sorted) {
       for (const k of daysOf(ev)) {
-        allDays.add(k);
+        if (counts(ev)) allDays.add(k);
         if (!k.startsWith(yearStr)) continue;
         if (!days.has(k)) days.set(k, { key: k, events: [], level: 'ok' });
         days.get(k).events.push(ev);
@@ -520,14 +525,15 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
 
     // 撞期：同一天有同一群人，或同一天有 3 個以上活動
     for (const d of [...days.values()].sort((a, b) => a.key.localeCompare(b.key))) {
-      const clash = PEOPLE.filter(g => d.events.filter(e => peopleOf(e).includes(g)).length >= 2);
-      if (!clash.length && d.events.length < 3) continue;
-      const ids = d.events.map(e => e.id);
+      const evs = d.events.filter(counts);
+      const clash = PEOPLE.filter(g => evs.filter(e => peopleOf(e).includes(g)).length >= 2);
+      if (!clash.length && evs.length < 3) continue;
+      const ids = evs.map(e => e.id);
       const sameSet = issues.find(is => is.lv === 'busy' && is.ids.join('|') === ids.join('|'));
       if (sameSet) { sameSet.days.push(d.key); continue; }
       issues.push({
         lv: 'busy', ids, groups: clash, days: [d.key], show: d.key,
-        text: `${dayName(d.key)}同一天有 ${d.events.length} 個活動${clash.length ? `，${groupNames(clash)}的人會撞到` : ''}：${titles(d.events)}`,
+        text: `${dayName(d.key)}同一天有 ${evs.length} 個活動${clash.length ? `，${groupNames(clash)}的人會撞到` : ''}：${titles(evs)}`,
       });
     }
 
@@ -612,6 +618,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
   }
   function audienceText(ev) {
     if (ev.audience === 'all') return '全教會都可以參加';
+    if (ev.audience === 'few') return '只要幾位同靈支援';
     if (ev.audience === 'family') return GROUPS[ev.group].short + '家屬';
     if (ev.audience === 'self') {
       if (ev.group === 'choir') return '詩班（各團契都有人）';
@@ -657,6 +664,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
   function publicAudience(ev) {
     const G = GROUPS[ev.group];
     if (ev.audience === 'all') return '全教會';
+    if (ev.audience === 'few') return '幾位同靈支援';
     if (ev.audience === 'family') return `${G.name}和家屬`;
     if (ev.audience === 'self') return STAFF.includes(ev.group) ? `${G.name}同工` : '';
     return GROUPS[ev.audience].name;
@@ -820,6 +828,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
           <li>帶家屬的活動：家屬可能在別的團契，算每個團契都有人。</li>
           <li>全教會都可以參加的活動，算每個人都有份。</li>
           <li>國定假日只是標出來（紅字），照樣可以排活動，不算撞期、太近。</li>
+          <li>「只要幾位同靈支援」的活動（例如外地團契來訪）也只是標出來，不算撞期、太近，那個週末也還算空著。</li>
         </ul>
       </section>
       <div class="foot">
@@ -998,7 +1007,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
 
   function audienceOptions(g) {
     if (g === 'church') {
-      return [['all', '全教會都可以參加'], ...DISTRICT.map(k => [k, `${GROUPS[k].name}的人`])];
+      return [['all', '全教會都可以參加'], ...DISTRICT.map(k => [k, `${GROUPS[k].name}的人`]), ['few', '只要幾位同靈支援']];
     }
     if (STAFF.includes(g)) {
       return [['all', '全教會都可以參加'], ['self', `${GROUPS[g].name}同工`]];
@@ -1065,6 +1074,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
     let html = `<h4>${dayLong(draft.date)}${lv === 'ok' ? '：沒有撞到' : lv === 'busy' ? '：撞期了' : '：太近了'}</h4>`;
     const hol = holidayText(daysOf(draft));
     if (hol) html += `<p>放假：${esc(hol)}</p>`;
+    if (!counts(draft)) html += '<p>只要幾位同靈支援的活動不算撞期、太近。</p>';
     html += around.length ? `<p>前後 ${NEAR_DAYS} 天還有：</p><div class="chips">${around.map(e => chip(e, true)).join('')}</div>` : `<p>前後 ${NEAR_DAYS} 天都還沒有別的活動。</p>`;
     html += issues.map(is => `<p>${esc(is.text)}</p>`).join('');
     if (lv !== 'ok') {
