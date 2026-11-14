@@ -235,18 +235,25 @@ h1 .badge { vertical-align: 0.15em; margin-right: 8px; }
 }
 .fab svg { width: 20px; height: 20px; }
 .fab.plan-fab { background: var(--card); color: var(--accent); border: 2px solid var(--accent); text-decoration: none; }
-.sheet-wrap { position: fixed; inset: 0; z-index: 30; background: var(--overlay); display: grid; align-items: end; justify-items: center; }
-@media (min-width: 700px) { .sheet-wrap { align-items: center; } }
+.sheet-wrap { position: fixed; inset: 0; z-index: 30; background: var(--overlay); display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+@media (min-width: 700px) { .sheet-wrap { justify-content: center; } }
+/* 面板上面留一條灰色（點了也會關）；標題列和下面的按鈕固定，只有中間的欄位捲動 */
 .sheet {
-  width: 100%; max-width: 560px; max-height: 94vh; overflow-y: auto;
+  width: 100%; max-width: 560px; max-height: calc(100% - 48px);
+  display: flex; flex-direction: column;
   background: var(--card);
   border-radius: 22px 22px 0 0;
-  padding: 20px max(18px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px));
 }
+.sheet:focus { outline: none; }
 @media (min-width: 700px) { .sheet { border-radius: 22px; } }
-.sheet h2 { margin: 0 0 14px; font-family: var(--f-display); font-size: 24px; display: flex; align-items: center; gap: 10px; }
-.form { display: grid; gap: 16px; }
-.field { display: grid; gap: 6px; min-width: 0; }
+.sheet-head, .sheet-body, .sheet-actions { padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
+.sheet-head { flex: none; display: flex; align-items: center; gap: 10px; padding-top: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.sheet h2 { margin: 0; flex: 1; min-width: 0; font-family: var(--f-display); font-size: 21px; display: flex; align-items: center; gap: 10px; }
+.sheet-close { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 99px; background: var(--quiet); color: var(--fg); }
+.sheet-close svg { width: 22px; height: 22px; }
+.form { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.sheet-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: grid; gap: 14px; padding-top: 14px; padding-bottom: 6px; }
+.field { display: grid; gap: 6px; min-width: 0; align-content: start; }
 .field > label, .field > .label { font-size: 15px; font-weight: 500; }
 .hint { font-size: 13px; color: var(--muted); }
 .row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -273,7 +280,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
 .suggest { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .suggest button { min-height: 40px; padding: 0 14px; border-radius: 99px; border: 1px solid currentColor; background: var(--card); color: inherit; font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .err { margin: 0; color: var(--danger); font-size: 15px; min-height: 1.4em; }
-.sheet-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.sheet-actions { flex: none; display: flex; gap: 10px; flex-wrap: wrap; padding-top: 10px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); }
 .btn { min-height: 50px; padding: 0 20px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); font-size: 17px; font-weight: 500; }
 .btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 700; flex: 1; }
 .btn.danger { color: var(--danger); border-color: var(--danger); background: none; }
@@ -300,9 +307,15 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
 </a>
 
 <div class="sheet-wrap" id="sheet-wrap" hidden>
-  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
-    <h2 id="sheet-title">新增活動</h2>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" tabindex="-1">
+    <div class="sheet-head">
+      <h2 id="sheet-title">新增活動</h2>
+      <button type="button" class="sheet-close" id="f-close" aria-label="取消，不儲存">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
     <form class="form" id="form" novalidate>
+      <div class="sheet-body" id="sheet-body">
       <div class="field">
         <label for="f-title">活動名稱</label>
         <input type="text" id="f-title" autocomplete="off" maxlength="60" placeholder="例如：年終感恩聚會">
@@ -340,6 +353,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
         <textarea id="f-note" maxlength="500" placeholder="例如：中區還沒公布，先照往年的日期"></textarea>
       </div>
       <p class="err" id="f-err" role="alert"></p>
+      </div>
       <div class="sheet-actions">
         <button type="button" class="btn danger" id="f-delete" hidden>刪除</button>
         <button type="button" class="btn" id="f-cancel">取消</button>
@@ -1003,7 +1017,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
   // ── 編輯 ───────────────────────────────
 
   const form = $('form');
-  let editId = null, editGroup = null, lastFocus = null;
+  let editId = null, editGroup = null, lastFocus = null, editorInHistory = false;
 
   function audienceOptions(g) {
     if (g === 'church') {
@@ -1038,14 +1052,34 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
     form.querySelectorAll('input[name="audience"]').forEach(r => r.addEventListener('change', updateCheck));
     lastFocus = document.activeElement;
     $('sheet-wrap').hidden = false;
+    $('sheet-body').scrollTop = 0;
     updateCheck();
-    setTimeout(() => $('f-title').focus(), 30);
+    // 面板開著時按手機的「返回」只關面板：先記一筆瀏覽紀錄
+    if (!editorInHistory) {
+      history.pushState({ editor: true }, '');
+      editorInHistory = true;
+    }
+    // 手機上一打開就跳鍵盤會擋住半個畫面，只有電腦才直接把游標放在活動名稱
+    if (window.matchMedia('(pointer: fine)').matches) setTimeout(() => $('f-title').focus(), 30);
+    else $('sheet').focus();
   }
   function closeEditor() {
+    if (editorInHistory) {
+      editorInHistory = false;
+      history.back();
+    }
+    hideEditor();
+  }
+  function hideEditor() {
     $('sheet-wrap').hidden = true;
     editId = null;
     if (lastFocus && lastFocus.focus) lastFocus.focus();
   }
+  window.addEventListener('popstate', () => {
+    if (!editorInHistory) return;
+    editorInHistory = false;
+    hideEditor();
+  });
 
   function draftFromForm() {
     return {
@@ -1103,12 +1137,13 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
 
   $('fab').addEventListener('click', () => openEditor(null));
   $('f-cancel').addEventListener('click', closeEditor);
+  $('f-close').addEventListener('click', closeEditor);
   $('sheet-wrap').addEventListener('click', e => { if (e.target === $('sheet-wrap')) closeEditor(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('sheet-wrap').hidden) closeEditor(); });
   // 存檔或刪除時把按鈕鎖住，避免按兩次
   function setSaving(on, label) {
     saving = on;
-    ['f-save', 'f-delete', 'f-cancel'].forEach(id => { $(id).disabled = on; });
+    ['f-save', 'f-delete', 'f-cancel', 'f-close'].forEach(id => { $(id).disabled = on; });
     $('f-save').textContent = on && label === 'save' ? '儲存中…' : '儲存';
     if (on && label === 'delete') $('f-delete').textContent = '刪除中…';
   }
