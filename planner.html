@@ -801,6 +801,10 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
         ${yearTabs()}
       </header>
       <section class="panel">
+        <h2 class="panel-h">我負責…<small>點進去就能新增、修改</small></h2>
+        <div class="who">${cards}</div>
+      </section>
+      <section class="panel">
         <h2 class="panel-h">${year} 年<small>${yearEvents.length} 個活動，${tentative} 個還是暫定</small></h2>
         <div class="summary">
           <div class="stat busy"><b>${busy}</b><span>天撞期</span></div>
@@ -808,10 +812,6 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); box-sh
           <div class="stat"><b>${free.length}</b><span>個週末還空著</span></div>
         </div>
         <p class="readonly-note" style="padding-top:8px">全部的活動照日期列在<a href="#home">「教會活動」首頁</a>。</p>
-      </section>
-      <section class="panel">
-        <h2 class="panel-h">我負責…<small>點進去就能新增、修改</small></h2>
-        <div class="who">${cards}</div>
       </section>
       <section class="panel">
         <h2 class="panel-h">空著的週末<small>週六、週日都還沒有活動，寫的是週六</small></h2>
