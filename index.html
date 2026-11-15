@@ -25,6 +25,7 @@
 
   /* 按鈕 */
   .btn-primary { padding: 8px 16px; background: #378ADD; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-primary:disabled { opacity: 0.6; cursor: wait; }
   .btn-primary:hover { background: #2d72c0; }
   .btn-secondary { padding: 8px 16px; background: #f5f5f5; color: #333; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; cursor: pointer; }
   .btn-secondary:hover { background: #eee; }
@@ -230,7 +231,7 @@
     <input type="text" id="folder-name-input" placeholder="資料夾名稱" />
     <div class="modal-btns">
       <button class="btn-secondary" onclick="closeFolderModal()">取消</button>
-      <button class="btn-primary" onclick="confirmCreateFolder()">建立</button>
+      <button class="btn-primary" id="folder-create-btn" onclick="confirmCreateFolder()">建立</button>
     </div>
   </div>
 </div>
@@ -707,16 +708,35 @@
   }
 
   let _createdFolder = null;
+  let creatingFolder = false;
 
   async function confirmCreateFolder() {
+    // 等 Google 回應的這一兩秒鎖住按鈕：多按一次、或鍵盤按「完成」又點「建立」，才不會建出兩個資料夾
+    if (creatingFolder) return;
     const name = document.getElementById('folder-name-input').value.trim();
     if (!name) return;
-    const res = await fetch(`${WORKER_URL}/folders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, parentId: currentCategoryId })
-    });
-    const data = await res.json().catch(() => ({}));
+    const btn = document.getElementById('folder-create-btn');
+    creatingFolder = true;
+    btn.disabled = true;
+    btn.textContent = '建立中…';
+    let data = {};
+    try {
+      const res = await fetch(`${WORKER_URL}/folders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, parentId: currentCategoryId })
+      });
+      data = await res.json().catch(() => ({}));
+    } catch (e) {
+      data = {};
+    }
+    creatingFolder = false;
+    btn.disabled = false;
+    btn.textContent = '建立';
+    if (!data || !data.id) {
+      alert('資料夾沒有建立成功，請稍後再按一次「建立」');
+      return;
+    }
     closeFolderModal();
     loadFolders();
     if (data && data.id) {
