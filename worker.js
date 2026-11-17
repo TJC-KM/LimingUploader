@@ -20,7 +20,7 @@ const SCHEDULE_SOURCE_FOLDER_ID = '1dCj76vGVwzOLnzUg2gPpbCne5HSxz7N1';
 // 安排表輸出資料夾（產生 Google Sheet，西元年命名）
 const SCHEDULE_OUTPUT_FOLDER_ID = '1gCCmXEbRLQMgZsUvhk5y7K3rTtKSTCdM';
 
-// 安排表工作提醒 LINE 排程 Sheet（Helper 帳號發送，與主排程分開）
+// 小幫手的 LINE 排程 Sheet（小幫手帳號發送，與主排程分開）：每月自動轉檔的結果通知寫在這裡
 const SCHEDULE_HELPER_SHEET_ID = '1F7fP03oexK4lrerV-hRHM1ooKirwZnuguCerGK6jogo';
 
 // 每月自動轉檔「下個月」安排表的排程；Cloudflare 的 Cron Trigger 必須設成一模一樣的字串
@@ -1546,80 +1546,4 @@ async function writeScheduleTab(token, spreadsheetId, tabName, rows) {
       body: JSON.stringify({ values }),
     }
   );
-}
-
-// 從 SHEET_ID 的 Users 頁籤讀取姓名 → userId 對照表
-async function getUsersMap(token) {
-  const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_HELPER_SHEET_ID}/values/Users!A:B`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  const data = await res.json();
-  const map = {};
-  const rows = (data.values || []).slice(1); // 跳過標題列
-  for (const [userId, userName] of rows) {
-    if (userId && userName) map[userName.trim()] = userId.trim();
-  }
-  return map;
-}
-
-// 計算工作日前三天的發送時間（台灣時間 08:00）
-function calcSendTime(dateStr) {
-  // dateStr 格式：2026/5/1
-  const [y, m, d] = dateStr.split('/').map(Number);
-  const date = new Date(y, m - 1, d);
-  date.setDate(date.getDate() - 3);
-  const yy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  return `${yy}/${mm}/${dd} 08:00`;
-}
-
-// 模糊比對：完整 → 後三字 → 後兩字
-function findUserId(usersMap, personName) {
-  const name = personName.trim();
-  if (usersMap[name]) return usersMap[name];
-  if (name.length >= 3) {
-    const last3 = name.slice(-3);
-    for (const [userName, userId] of Object.entries(usersMap)) {
-      if (userName.endsWith(last3)) return userId;
-    }
-  }
-  if (name.length >= 2) {
-    const last2 = name.slice(-2);
-    for (const [userName, userId] of Object.entries(usersMap)) {
-      if (userName.endsWith(last2)) return userId;
-    }
-  }
-  return null;
-}
-
-// 寫入 LINE 排程 Sheet（一人一筆），回傳 { written, unmatched }
-async function writeConvertLineSchedule(token, scheduleRows, usersMap) {
-  const withPerson = scheduleRows.filter(r => r.person && r.date);
-  const matched   = withPerson.filter(r => findUserId(usersMap, r.person));
-  const unmatched = withPerson.length - matched.length;
-
-  const rows = matched.map(r => {
-    const userId   = findUserId(usersMap, r.person);
-    const sendTime = calcSendTime(r.date);
-    const content  = `${r.date}有被安排${r.job}工作，要記得`;
-    return [sendTime, userId, 'text', content, '', '', 'pending'];
-  });
-
-  if (rows.length === 0) return { written: 0, unmatched };
-
-  const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SCHEDULE_HELPER_SHEET_ID}/values/Schedule!A:G:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
-    {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ values: rows }),
-    }
-  );
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(`LINE 排程寫入失敗：${err.error?.message || res.status}`);
-  }
-  return { written: rows.length, unmatched };
 }
