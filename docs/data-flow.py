@@ -67,7 +67,8 @@ DX, DW = 1320, 290
 W = DX + DW + 30
 
 # 處理欄的方塊行數，先算出 Worker 外框的高度
-B_TOP = 112
+TOP = 162  # 畫面欄的方塊從這裡開始；標題區加減行數時調這個
+B_TOP = TOP - 8
 B_ORDER = ['b1', 'b2', 'b4', 'b5', 'b6']
 B_LINES = {'b1': 7, 'b2': 3, 'b4': 7, 'b5': 4, 'b6': 3}
 GAP = 12
@@ -80,8 +81,11 @@ B_BOTTOM = y - GAP + 16
 
 add('<text x="30" y="40" font-size="20" font-weight="700" fill="#1a1d24">黎明寶庫 LimingUploader：資料流程</text>')
 add('<text x="30" y="63" font-size="13" fill="#5c6270">四個畫面：① 寶庫首頁　② 分享圖庫　③ LINE 分享卡片　④ 教會活動　｜　藍＝照片與檔案　綠＝教會活動　金＝安排表與 AI　灰＝設定、只讀</text>')
+add('<text x="30" y="86" font-size="13" font-weight="700" fill="#4a5164">怎麼看：</text>')
+add('<text x="86" y="86" font-size="13" fill="#4a5164"><tspan font-weight="700">順著箭頭看</tspan>（左 → 右）：左邊的檔案、設定經過哪些處理，最後出現在哪個畫面</text>')
+add('<text x="86" y="106" font-size="13" fill="#4a5164"><tspan font-weight="700">逆著箭頭看</tspan>（右 → 左）：畫面上某一項是從哪裡來的，不對時要去哪裡改</text>')
 for x, t in [(AX, '來源'), (BX, '處理'), (CX, '資料'), (DX, '畫面（讀資料都經由 Worker）')]:
-    add(f'<text x="{x}" y="100" font-size="14" font-weight="700" fill="#1a1d24">{escape(t)}</text>')
+    add(f'<text x="{x}" y="{TOP - 20}" font-size="14" font-weight="700" fill="#1a1d24">{escape(t)}</text>')
 
 # B 欄：Worker
 add(f'<rect x="{BX}" y="{B_TOP}" width="{BW}" height="{B_BOTTOM - B_TOP}" fill="#f1f3f7" stroke="#b9c2d4" rx="8"/>')
@@ -179,7 +183,7 @@ A4 = box(AX, max(B5.y, A3.bottom + 18), AW, '類別設定試算表 ✎', [
 ], GRAY)
 
 # D 欄：畫面
-D1 = box(DX, 120, DW, '① 黎明寶庫首頁', [
+D1 = box(DX, TOP, DW, '① 黎明寶庫首頁', [
     'tjc-km.github.io/LimingUploader',
     '類別方塊 ← 類別設定 Sheet1',
     '資料夾、檔案、縮圖 ← Drive',
