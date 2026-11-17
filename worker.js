@@ -76,11 +76,11 @@ function corsHeaders() {
 // ========================================
 export default {
   async scheduled(event, env, ctx) {
-    // 每月轉檔的排程只做轉檔；其他排程維持每日錄音重點整理
+    // 只有每月轉檔一個排程；Cron 字串對不上就不做事，留一筆紀錄方便查
     if (event.cron === MONTHLY_CONVERT_CRON) {
       ctx.waitUntil(runMonthlyConvert(env));
     } else {
-      ctx.waitUntil(runDailySummarize(env));
+      console.log(`[scheduled] 沒有對應的工作：${event.cron}`);
     }
   },
 
@@ -153,8 +153,7 @@ export default {
       }
 
       // ========================================
-      // 私密路由：需要密碼，才能新增或上傳
-      // 專門用來驗證密碼的路由（不做任何 Drive 操作）
+      // 比對 UPLOAD_PASSWORD（不做任何 Drive 操作）。網頁已經拿掉登入，目前沒有呼叫；專案規定不刪既有路由，所以保留
       if (path === '/auth' && method === 'POST') {
         const { password: inputPassword } = await request.json();
         if (inputPassword === env.UPLOAD_PASSWORD) {
@@ -170,11 +169,12 @@ export default {
       }
 
       // ========================================
+      // 新增、上傳、改名、刪除等寫入路由：不用密碼，網頁上有網址的人都能用
 
-      // 取得 Google OAuth Token（私密路由共用）
+      // 取得 Google OAuth Token（下面的路由共用）
       const token = await getAccessToken(env);
 
-      // 新增資料夾（需要密碼）
+      // 新增資料夾
       if (path === '/folders' && method === 'POST') {
         const { name, parentId } = await request.json();
         return await createFolder(
@@ -185,7 +185,7 @@ export default {
         );
       }
 
-      // 取得 Google Drive Resumable Upload 網址（需要密碼）
+      // 取得 Google Drive Resumable Upload 網址
       // 前端拿到網址後直接 PUT 檔案到 Google，繞過 Worker 100MB request 上限
       if (path === '/upload-url' && method === 'POST') {
         const { fileName, mimeType, folderId } = await request.json();
@@ -258,31 +258,25 @@ export default {
         });
       }
 
-      // 重新命名檔案或資料夾（需要密碼）
+      // 重新命名檔案或資料夾
       if (path === '/rename' && method === 'PATCH') {
         const { id, newName } = await request.json();
         return await renameItem(token, id, newName, headers);
       }
 
-      // 移至刪除區（需要密碼）
+      // 移至刪除區
       if (path === '/move' && method === 'PATCH') {
         const { id, fromParentId, trashFolderId } = await request.json();
         return await moveItem(token, id, fromParentId, trashFolderId, headers);
       }
 
-      // 新增 LINE 排程（需要密碼）
+      // 新增 LINE 排程
       if (path === '/schedule' && method === 'POST') {
         const body = await request.json();
         return await addScheduleRow(token, body, headers);
       }
 
-      // 音檔重點整理（需要密碼）
-      if (path === '/summarize' && method === 'POST') {
-        const { fileId, fileName } = await request.json();
-        return await summarizeAudio(token, env, fileId, fileName, headers);
-      }
-
-      // 安排表轉檔（需要密碼）
+      // 安排表轉檔
       if (path === '/convert' && method === 'POST') {
         const { fileName } = await request.json();
         return await convertSchedule(token, env, fileName, headers);
@@ -984,211 +978,6 @@ async function getReplaceUploadUrl(token, fileId, headers) {
   const uploadUrl = res.headers.get('Location');
   if (!uploadUrl) return reply({ error: `建立上傳失敗（${res.status}）` }, 500);
   return reply({ uploadUrl });
-}
-
-// ========================================
-// 音檔重點整理：Drive → Gemini → Notion
-// ========================================
-async function summarizeAudio(driveToken, env, fileId, fileName, headers) {
-  const GEMINI_KEY = env.GEMINI_API_KEY;
-  const NOTION_TOKEN = env.NOTION_TOKEN;
-  const NOTION_PAGE_ID = env.NOTION_PARENT_PAGE_ID;
-
-  if (!GEMINI_KEY)    throw new Error('未設定 GEMINI_API_KEY 環境變數');
-  if (!NOTION_TOKEN)  throw new Error('未設定 NOTION_TOKEN 環境變數');
-  if (!NOTION_PAGE_ID) throw new Error('未設定 NOTION_PARENT_PAGE_ID 環境變數');
-
-  // 1. 從 Google Drive 下載音檔
-  const dlRes = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
-    { headers: { Authorization: `Bearer ${driveToken}` } }
-  );
-  if (!dlRes.ok) throw new Error(`Drive 下載失敗 (${dlRes.status})`);
-  const audioBytes = await dlRes.arrayBuffer();
-
-  // 2. 上傳到 Gemini Files API（multipart）
-  const enc = new TextEncoder();
-  const boundary = 'gem_' + Date.now();
-  const meta = JSON.stringify({ file: { display_name: fileName } });
-  const head = enc.encode(
-    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n` +
-    `--${boundary}\r\nContent-Type: audio/mpeg\r\n\r\n`
-  );
-  const tail = enc.encode(`\r\n--${boundary}--`);
-  const body = new Uint8Array(head.byteLength + audioBytes.byteLength + tail.byteLength);
-  body.set(head);
-  body.set(new Uint8Array(audioBytes), head.byteLength);
-  body.set(tail, head.byteLength + audioBytes.byteLength);
-
-  const upRes = await fetch(
-    `https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=multipart&key=${GEMINI_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
-      body,
-    }
-  );
-  const upData = await upRes.json();
-  if (!upData.file?.uri) throw new Error('Gemini 上傳失敗：' + JSON.stringify(upData));
-
-  const fileUri      = upData.file.uri;
-  const geminiName   = upData.file.name;
-
-  // 3. 等待檔案狀態變為 ACTIVE
-  let state = upData.file.state || 'PROCESSING';
-  for (let i = 0; i < 6 && state !== 'ACTIVE'; i++) {
-    await new Promise(r => setTimeout(r, 2000));
-    const chk = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/${geminiName}?key=${GEMINI_KEY}`
-    );
-    state = (await chk.json()).state;
-  }
-  if (state !== 'ACTIVE') throw new Error('Gemini 檔案處理逾時，請稍後再試');
-
-  // 4. 呼叫 Gemini 整理重點（prompt 從 Config 頁籤讀取）
-  const prompt = await getConfigValue(driveToken, 'summarize_prompt');
-  if (!prompt) throw new Error('未在 Config 頁籤設定 summarize_prompt，請至 Google Sheet 新增');
-
-  const genRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${GEMINI_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [
-          { file_data: { mime_type: 'audio/mpeg', file_uri: fileUri } },
-          { text: prompt }
-        ]}],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
-      }),
-    }
-  );
-  const genData = await genRes.json();
-  if (genData.error) throw new Error('Gemini 生成失敗：' + genData.error.message);
-  const text = genData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  if (!text) throw new Error('Gemini 未回傳內容');
-
-  // 5. 寫入 Notion（先確認是否已有相同標題）
-  const today = new Date().toISOString().slice(0, 10);
-  const title = `${fileName.replace(/\.mp3$/i, '')}  編:${today}`;
-
-  const notionHeaders = {
-    Authorization: `Bearer ${NOTION_TOKEN}`,
-    'Notion-Version': '2022-06-28',
-    'Content-Type': 'application/json',
-  };
-  const searchRes = await fetch('https://api.notion.com/v1/search', {
-    method: 'POST',
-    headers: notionHeaders,
-    body: JSON.stringify({ query: title, filter: { property: 'object', value: 'page' } }),
-  });
-  const searchData = await searchRes.json();
-  const existing = searchData.results?.find(p =>
-    p.properties?.title?.title?.[0]?.plain_text === title
-  );
-  if (existing) {
-    return new Response(
-      JSON.stringify({ ok: true, notionUrl: existing.url, title, duplicate: true }),
-      { headers: { ...headers, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  const notionRes = await fetch('https://api.notion.com/v1/pages', {
-    method: 'POST',
-    headers: notionHeaders,
-    body: JSON.stringify({
-      parent: { page_id: NOTION_PAGE_ID },
-      properties: { title: { title: [{ text: { content: title } }] } },
-      children: markdownToNotionBlocks(text),
-    }),
-  });
-  const notionData = await notionRes.json();
-  if (notionData.object === 'error') throw new Error('Notion 寫入失敗：' + notionData.message);
-
-  return new Response(
-    JSON.stringify({ ok: true, notionUrl: notionData.url, title }),
-    { headers: { ...headers, 'Content-Type': 'application/json' } }
-  );
-}
-
-// Gemini 回傳的 Markdown 轉換成 Notion blocks
-function markdownToNotionBlocks(text) {
-  const blocks = [];
-  for (const raw of text.split('\n')) {
-    const line = raw.trimEnd();
-    if (!line.trim()) continue;
-    if (blocks.length >= 98) break; // Notion 上限 100 blocks
-
-    if (line.startsWith('## ')) {
-      blocks.push({ object: 'block', type: 'heading_2',
-        heading_2: { rich_text: [{ text: { content: line.slice(3).trim() } }] } });
-    } else if (line.startsWith('# ')) {
-      blocks.push({ object: 'block', type: 'heading_1',
-        heading_1: { rich_text: [{ text: { content: line.slice(2).trim() } }] } });
-    } else if (/^[-•]\s/.test(line)) {
-      blocks.push({ object: 'block', type: 'bulleted_list_item',
-        bulleted_list_item: { rich_text: [{ text: { content: line.replace(/^[-•]\s+/, '').slice(0, 2000) } }] } });
-    } else {
-      blocks.push({ object: 'block', type: 'paragraph',
-        paragraph: { rich_text: [{ text: { content: line.trim().slice(0, 2000) } }] } });
-    }
-  }
-  blocks.push({ object: 'block', type: 'divider', divider: {} });
-  blocks.push({ object: 'block', type: 'paragraph',
-    paragraph: { rich_text: [{ text: { content: '由 Gemini AI 自動整理' },
-      annotations: { italic: true, color: 'gray' } }] } });
-  return blocks;
-}
-
-// ========================================
-// 每日排程：自動整理前一天的音檔
-// ========================================
-
-function getYesterdayTaipei() {
-  const taipei = new Date(Date.now() + 8 * 60 * 60 * 1000);
-  taipei.setUTCDate(taipei.getUTCDate() - 1);
-  const yyyy = taipei.getUTCFullYear();
-  const mm = String(taipei.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(taipei.getUTCDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-async function runDailySummarize(env) {
-  const token = await getAccessToken(env);
-  const datePrefix = getYesterdayTaipei();
-
-  // 讀取 Sheet1，找出 enabled=TRUE、noUpload=TRUE、type=drive 的類別
-  const sheetRes = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/Sheet1!A:I`,
-    { headers: { Authorization: `Bearer ${token}` } }
-  );
-  const sheetData = await sheetRes.json();
-  const rows = (sheetData.values || []).slice(1);
-  const targets = rows.filter(row =>
-    (row[7] || '').toUpperCase() === 'TRUE' &&  // H: enabled
-    (row[6] || '').toUpperCase() === 'TRUE' &&  // G: noUpload
-    (row[2] || '').toLowerCase() === 'drive' && // C: type=drive
-    row[3]                                       // D: 有資料夾 ID
-  );
-
-  for (const cat of targets) {
-    const folderId = cat[3];
-    const q = `'${folderId}' in parents and name contains '${datePrefix}' and trashed=false`;
-    const fileRes = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const fileData = await fileRes.json();
-    const files = (fileData.files || []).filter(f => f.name.startsWith(datePrefix));
-
-    for (const file of files) {
-      try {
-        await summarizeAudio(token, env, file.id, file.name, {});
-      } catch (e) {
-        console.error(`[dailySummarize] ${file.name} 失敗：${e.message}`);
-      }
-    }
-  }
 }
 
 // ========================================

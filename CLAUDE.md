@@ -111,8 +111,9 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
   - name 是 `liminguploader`
   - `triggers.crons` 是 `0 0 20,25 * *`
   - `routes` 要有分享短連結的自訂網域：`[{ "pattern": "share.liming-tjc.org", "custom_domain": true }]`
-  - 一般變數 `FOLDER_ID`、`GEMINI_API_KEY`、`NOTION_PARENT_PAGE_ID`、`UPLOAD_PASSWORD` 都要寫進去，設定檔沒寫到的一般變數部署後會被刪掉
-- `NOTION_TOKEN`、`SERVICE_ACCOUNT_KEY` 是用 Secret 存的，兩種部署方式都不會動到
+  - 一般變數 `FOLDER_ID`、`GEMINI_API_KEY`、`UPLOAD_PASSWORD` 都要寫進去，設定檔沒寫到的一般變數部署後會被刪掉
+  - `NOTION_PARENT_PAGE_ID` 已經沒在用（2026-11-17 拿掉錄音重點整理），寫不寫都可以
+- `SERVICE_ACCOUNT_KEY` 是用 Secret 存的，兩種部署方式都不會動到；Secret `NOTION_TOKEN` 也已經沒在用，留著不影響
 
 ---
 
@@ -121,9 +122,10 @@ SCHEDULE_SHEET_ID = '1oNBqAG8F041o9ts-7pIsJCt9dLyIyWhhEX6bxUVOV9k'  ← LINE 排
 | Cron | 執行內容 |
 |------|----------|
 | `0 0 20,25 * *` | `runMonthlyConvert`：每月 20 號台灣 08:00 自動轉檔「下個月」安排表；25 號只補做還沒轉好的月份（不覆蓋已轉好的）；完成或失敗都用小幫手 LINE 通知 Config 頁籤 `convert_notify` 指定的人 |
-| 其他任何 Cron | `runDailySummarize`：整理前一天的錄音重點 |
+| 其他任何 Cron | 不做事，只在 Worker 的紀錄留一行「沒有對應的工作」 |
 
-- 每月轉檔的 Cron 字串必須和 `worker.js` 的 `MONTHLY_CONVERT_CRON` 一模一樣，否則會被當成每日錄音整理
+- 每月轉檔的 Cron 字串必須和 `worker.js` 的 `MONTHLY_CONVERT_CRON` 一模一樣，否則**不會轉檔，也不會報錯**（只在紀錄留一行）
+- 以前「其他 Cron」會整理前一天的錄音重點寫進 Notion，2026-11-17 使用者說已停用，程式和寶庫首頁的「重點整理」按鈕都拿掉了
 - Cron 可以在 Dashboard 設定；用 wrangler 部署時，設定檔的 `triggers.crons` 也要寫同一個字串
 
 ---
