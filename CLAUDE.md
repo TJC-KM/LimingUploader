@@ -14,7 +14,7 @@
 
 **後端 API：** `https://liminguploader.c3012312.workers.dev`  
 **前端網址：** `https://tjc-km.github.io/LimingUploader/`  
-**資料流程圖：** `docs/data-flow.svg`，四個畫面（寶庫首頁、分享圖庫、LINE 分享卡片、教會活動）和背景排程的資料從哪來、寫到哪裡。由 `docs/data-flow.py` 產生，改圖請改腳本重新執行，不要手改 SVG；改到 Worker 路由、排程、試算表欄位或畫面區塊時要同步更新
+**資料流程圖：** `docs/data-flow.svg`，四個畫面（寶庫首頁、分享圖庫、LINE 分享卡片、教會活動）和背景排程的資料從哪來、寫到哪裡。由 `docs/data-flow.py` 產生，改圖請改腳本重新執行，不要手改 SVG；改到 Worker 路由、排程、試算表欄位或畫面區塊時要同步更新  
 **相簿分享短連結：** `https://share.liming-tjc.org/s/<資料夾 ID>`（同一個 Worker 的自訂網域；`liming-tjc.org` 由使用者管理，主網站在 GitHub Pages，只有 `share` 子網域指向 Worker）
 
 ---
