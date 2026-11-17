@@ -24,7 +24,7 @@
 <text x="414" y="237" font-size="12.5" fill="#4a5164">刪除＝搬到刪除區（類別專屬的，沒設用全域）</text>
 <text x="414" y="256" font-size="12.5" fill="#4a5164">上傳：給續傳網址，瀏覽器直接傳到 Drive</text>
 <text x="414" y="275" font-size="12.5" fill="#4a5164">　100MB 以下也可以由 Worker 轉傳</text>
-<text x="414" y="294" font-size="12.5" fill="#4a5164">密碼：網頁上按這些功能前先輸入（/auth）</text>
+<text x="414" y="294" font-size="12.5" fill="#4a5164">不用密碼：有網址的人都能用這些功能</text>
 <rect x="400" y="331" width="390" height="111" fill="#ffffff" stroke="#7c9cc4" stroke-width="1.6" rx="7"/>
 <rect x="400" y="331" width="390" height="30" fill="#7c9cc4" rx="7"/>
 <rect x="400" y="353" width="390" height="8" fill="#7c9cc4"/>
@@ -159,7 +159,7 @@
 <text x="1334" y="168" font-size="12.5" fill="#4a5164">tjc-km.github.io/LimingUploader</text>
 <text x="1334" y="187" font-size="12.5" fill="#4a5164">類別方塊 ← 類別設定 Sheet1</text>
 <text x="1334" y="206" font-size="12.5" fill="#4a5164">資料夾、檔案、縮圖 ← Drive</text>
-<text x="1334" y="225" font-size="12.5" fill="#4a5164">按鈕（先輸入密碼）：</text>
+<text x="1334" y="225" font-size="12.5" fill="#4a5164">按鈕（不用密碼）：</text>
 <text x="1334" y="244" font-size="12.5" fill="#4a5164">　新增資料夾、上傳、改名、刪除</text>
 <text x="1334" y="263" font-size="12.5" fill="#4a5164">　LINE 發布（類別有打勾才有）</text>
 <text x="1334" y="282" font-size="12.5" fill="#4a5164">　錄音：重點整理、剪輯</text>
